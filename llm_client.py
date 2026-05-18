@@ -5,10 +5,10 @@ import time
 
 API_KEY = "AIzaSyAfYzrSyZdX9_t_c1zNntg1Y6zU2-9SNjA"
 MODELS = [
-    "gemini-3.1-pro-preview",
     "gemini-3-flash-preview",
     "gemini-3.1-flash-lite",
-    "gemini-3.1-flash-lite-preview"
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-pro-preview"
 ]
 
 class LLMClient:
@@ -16,7 +16,7 @@ class LLMClient:
         self.api_key = api_key
         self.models = models
 
-    def generate_content(self, prompt, max_retries=3):
+    def generate_content(self, prompt, max_retries=3, timeout=30):
         headers = {
             "Content-Type": "application/json"
         }
@@ -31,11 +31,12 @@ class LLMClient:
             for attempt in range(max_retries):
                 try:
                     req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers, method="POST")
-                    with urllib.request.urlopen(req) as response:
+                    with urllib.request.urlopen(req, timeout=timeout) as response:
                         result = json.loads(response.read().decode('utf-8'))
                         # Extract text
                         try:
                             text = result['candidates'][0]['content']['parts'][0]['text']
+                            print(f"[{model}] OK (attempt {attempt+1})")
                             return text, model
                         except (KeyError, IndexError) as e:
                             print(f"[{model}] Failed to parse response format. Retrying...")
@@ -48,6 +49,10 @@ class LLMClient:
                         continue
                     else:
                         break # Break out of retry loop for this model on 4xx errors
+                except urllib.error.URLError as e:
+                    print(f"[{model}] URL/Network Error: {str(e.reason)}")
+                    time.sleep(2 ** attempt)
+                    continue
                 except Exception as e:
                     print(f"[{model}] Exception: {str(e)}")
                     time.sleep(1)
