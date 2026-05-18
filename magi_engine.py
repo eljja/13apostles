@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-MAGI_ROLES = [
+APOSTLE_ROLES = [
     "Performance", "Cost", "Risk", "Novelty", "Feasibility",
     "Scalability", "Robustness", "Safety", "Interpretability",
     "Alignment", "Data", "Architecture", "Meta"
@@ -18,7 +18,7 @@ class MagiEngine:
         print(f"\n{'='*50}\n{text}\n{'='*50}")
 
     def run_simulation(self, issue_title, candidates, votes_data):
-        self.print_header(f"MAGI-13 Evolution Loop Started\nIssue: {issue_title}")
+        self.print_header(f"13 Apostles Evolution Loop Started\nIssue: {issue_title}")
 
         if len(candidates) > 20:
             print("Error: Maximum 20 candidates allowed.")
@@ -30,16 +30,16 @@ class MagiEngine:
         scores = {c['id']: 0 for c in candidates}
         vetoes = []
 
-        self.print_header("13 MAGI Voting Process")
-        for magi, magi_votes in votes_data.items():
-            print(f"[{magi} MAGI] casting votes...")
-            for vote in magi_votes:
+        self.print_header("13 Apostles Voting Process")
+        for apostle, apostle_votes in votes_data.items():
+            print(f"[{apostle} Apostle] casting votes...")
+            for vote in apostle_votes:
                 c_id = vote['candidate_id']
                 score = vote['score']
                 is_veto = vote.get('veto', False)
 
                 if is_veto:
-                    print(f"  -> VETO invoked by {magi} on candidate {c_id}: {vote.get('reason', '')}")
+                    print(f"  -> VETO invoked by {apostle} on candidate {c_id}: {vote.get('reason', '')}")
                     vetoes.append(c_id)
                 else:
                     scores[c_id] += score
