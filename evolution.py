@@ -322,10 +322,15 @@ Instructions:
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python evolution.py <target.py>")
+        print("Usage: python evolution.py <target.py> [--test]")
+        print("  --test  Use only 3 apostles for faster testing")
         print("Example: python evolution.py 0.py")
         sys.exit(1)
 
     target = sys.argv[1]
+    test_mode = "--test" in sys.argv
     engine = EvolutionEngine(os.getcwd(), target)
+    if test_mode:
+        engine.apostles = engine.apostles[:3]
+        print(f"[TEST MODE] Using only {len(engine.apostles)} apostles: {[a['name'] for a in engine.apostles]}")
     engine.run()
