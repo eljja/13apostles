@@ -38,12 +38,9 @@ class EvolutionEngine:
         return apostles
 
     def _determine_issue_prompt(self):
-        """Automatically determine the evolution issue based on the target filename."""
         if len(self.target_basename) <= 1:
-            # First generation: use CORE_OBJECTIVE.md
             return f"The system's Core Objective is:\n\n{self.core_objective}\n\nPropose the most critical first evolutionary step for this program."
         else:
-            # Later generations: use parent's decision log
             parent_name = self.target_basename[:-1]
             parent_md = self._read_file(f"{parent_name}.md")
             if parent_md:
@@ -201,13 +198,7 @@ Output ONLY valid JSON in the following format (no markdown, just raw JSON):
             v_text = "(VETOED)" if r['vetoed'] else f"Score: {r['final_score']:.2f}"
             print(f"- [{r['id']}] {r['title']}: {v_text}")
 
-        winner = final_results[0] if not final_results[0]['vetoed'] else None
-        if winner:
-            print(f"\nWINNER: [{winner['id']}] {winner['title']}")
-        else:
-            print("\nALL TOP CANDIDATES VETOED.")
-
-        return winner, final_results, vetoes
+        return final_results, vetoes
 
     def mutate_code(self, target_code, winner, candidates):
         print(f"\n--- Phase 4: Code Mutation ({winner['id']}) ---")
@@ -239,37 +230,11 @@ Instructions:
             print(f"Code generation failed: {e}")
             return None
 
-    def apply_decision(self, winner, candidates, votes_data, final_results, vetoes, target_code):
-        if not winner:
-            return
-
-        new_name = f"{self.target_basename}{winner['id']}"
-        new_filename = f"{new_name}.py"
-        print(f"\nApplying decision: Evolving {self.target_basename}.py -> {new_filename}")
-
-        # 1. Mutate Code
-        new_code = self.mutate_code(target_code, winner, candidates)
-        if not new_code:
-            print("Mutation failed. Aborting.")
-            return
-
-        new_filepath = os.path.join(self.workspace_dir, new_filename)
-        with open(new_filepath, "w", encoding="utf-8") as f:
-            f.write(new_code)
-
-        # 2. Syntax Check
-        try:
-            py_compile.compile(new_filepath, doraise=True)
-            print(f"Syntax check passed for {new_filename}.")
-        except py_compile.PyCompileError as e:
-            print(f"SYNTAX ERROR IN MUTATED CODE. Aborting evolution.\n{e}")
-            os.remove(new_filepath)
-            return
-
-        # 3. Write Decision Log
+    def _write_decision_log(self, candidates, final_results, vetoes, votes_data, children_info):
+        """Write the decision log markdown file."""
         decision_log_path = os.path.join(self.workspace_dir, f"{self.target_basename}.md")
         with open(decision_log_path, "w", encoding="utf-8") as f:
-            f.write(f"# Decision Log: {self.target_basename}.py -> {new_filename}\n\n")
+            f.write(f"# Decision Log: {self.target_basename}.py\n\n")
             f.write("## Candidates Proposed\n")
             for c in candidates:
                 f.write(f"\n### [{c['id']}] {c['title']}\n```markdown\n{c['content']}\n```\n")
@@ -280,27 +245,44 @@ Instructions:
                 f.write("\n## Vetoes\n")
                 for v in vetoes:
                     f.write(f"- Candidate {v[0]} vetoed by {v[1]}: {v[2]}\n")
+            f.write("\n## Children Spawned\n")
+            for ci in children_info:
+                f.write(f"- **{ci['filename']}** <- [{ci['id']}] {ci['title']}\n")
             f.write("\n## Raw Votes Data\n```json\n")
             f.write(json.dumps(votes_data, indent=2, ensure_ascii=False))
             f.write("\n```\n")
+        return decision_log_path
 
-        # 4. Git operations
-        subprocess.run(["git", "checkout", "-b", new_name], cwd=self.workspace_dir)
-        subprocess.run(["git", "add", "."], cwd=self.workspace_dir)
-        subprocess.run(["git", "commit", "-m", f"Evolve {self.target_basename} -> {new_name}: {winner['title']}"], cwd=self.workspace_dir)
+    def _spawn_child(self, winner, candidates, target_code):
+        """Mutate the code for a single winner and write the child .py file."""
+        new_name = f"{self.target_basename}{winner['id']}"
+        new_filename = f"{new_name}.py"
+        new_filepath = os.path.join(self.workspace_dir, new_filename)
 
-        print(f"\nEvolution complete!")
-        print(f"  New code: {new_filename}")
-        print(f"  Decision: {self.target_basename}.md")
-        print(f"  Branch:   {new_name}")
-        print(f"\nTo continue evolution, run: python evolution.py {new_filename}")
+        new_code = self.mutate_code(target_code, winner, candidates)
+        if not new_code:
+            print(f"Mutation failed for {new_filename}. Skipping.")
+            return None
 
-    def run(self):
-        # Read the target code
+        with open(new_filepath, "w", encoding="utf-8") as f:
+            f.write(new_code)
+
+        try:
+            py_compile.compile(new_filepath, doraise=True)
+            print(f"Syntax check passed for {new_filename}.")
+        except py_compile.PyCompileError as e:
+            print(f"SYNTAX ERROR in {new_filename}. Skipping.\n{e}")
+            os.remove(new_filepath)
+            return None
+
+        return {"id": winner['id'], "title": winner['title'], "filename": new_filename, "name": new_name}
+
+    def run(self, num_children=1):
+        """Run one evolution cycle, spawning up to num_children branches."""
         target_path = os.path.join(self.workspace_dir, self.target_file)
         if not os.path.exists(target_path):
             print(f"Error: Target file '{self.target_file}' not found.")
-            sys.exit(1)
+            return []
 
         with open(target_path, "r", encoding="utf-8") as f:
             target_code = f.read()
@@ -312,25 +294,62 @@ Instructions:
 
         candidates = self.generate_candidates(target_code, issue_prompt)
         if not candidates:
-            return
+            return []
 
         votes_data = self.conduct_voting(candidates)
-        winner, final_results, vetoes = self.calculate_results(candidates, votes_data)
+        final_results, vetoes = self.calculate_results(candidates, votes_data)
 
-        self.apply_decision(winner, candidates, votes_data, final_results, vetoes, target_code)
+        # Select top N non-vetoed candidates as children
+        valid_results = [r for r in final_results if not r['vetoed']]
+        winners = valid_results[:num_children]
+
+        if not winners:
+            print("ALL CANDIDATES VETOED. No children spawned.")
+            return []
+
+        print(f"\n--- Spawning {len(winners)} children ---")
+        children_info = []
+        for w in winners:
+            child = self._spawn_child(w, candidates, target_code)
+            if child:
+                children_info.append(child)
+
+        # Write decision log
+        self._write_decision_log(candidates, final_results, vetoes, votes_data, children_info)
+
+        # Git: commit all changes on the current branch
+        subprocess.run(["git", "add", "."], cwd=self.workspace_dir)
+        child_names = ", ".join([c['filename'] for c in children_info])
+        subprocess.run(["git", "commit", "-m",
+                         f"Evolve {self.target_basename}: spawn {child_names}"],
+                        cwd=self.workspace_dir)
+
+        print(f"\nEvolution complete!")
+        print(f"  Decision log: {self.target_basename}.md")
+        for ci in children_info:
+            print(f"  Child: {ci['filename']} <- [{ci['id']}] {ci['title']}")
+
+        return children_info
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python evolution.py <target.py> [--test]")
-        print("  --test  Use only 3 apostles for faster testing")
-        print("Example: python evolution.py 0.py")
+        print("Usage: python evolution.py <target.py> [--children N] [--test]")
+        print("  --children N  Spawn top N children (default: 1, max: 5)")
+        print("  --test        Use only 3 apostles for faster testing")
+        print("Example: python evolution.py 0.py --children 3")
         sys.exit(1)
 
     target = sys.argv[1]
     test_mode = "--test" in sys.argv
+    num_children = 1
+    if "--children" in sys.argv:
+        idx = sys.argv.index("--children")
+        if idx + 1 < len(sys.argv):
+            num_children = min(int(sys.argv[idx + 1]), 5)
+
     engine = EvolutionEngine(os.getcwd(), target)
     if test_mode:
         engine.apostles = engine.apostles[:3]
         print(f"[TEST MODE] Using only {len(engine.apostles)} apostles: {[a['name'] for a in engine.apostles]}")
-    engine.run()
+    engine.run(num_children=num_children)
