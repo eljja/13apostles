@@ -258,10 +258,19 @@ Instructions:
             return
 
         # 3. Write Decision Log
-        with open(os.path.join(self.workspace_dir, f"{new_branch}.decision"), "w", encoding="utf-8") as f:
-            f.write(f"# Decision Log for {new_branch}\n\n## Voting Results\n")
+        decision_log_path = os.path.join(self.workspace_dir, f"{current_branch}.md")
+        with open(decision_log_path, "w", encoding="utf-8") as f:
+            f.write(f"# Decision Log for Evolution from {current_branch}.py to {new_filename}\n\n")
+            f.write("## Candidates Proposed\n")
+            for c in candidates:
+                f.write(f"\n### [{c['id']}] {c['title']}\n```markdown\n{c['content']}\n```\n")
+            f.write("\n## Voting Results\n")
             for r in final_results:
                 f.write(f"- **[{r['id']}] {r['title']}** -> Final Score: {r['final_score']:.2f} | Vetoed: {r['vetoed']}\n")
+            if vetoes:
+                f.write("\n## Vetoes\n")
+                for v in vetoes:
+                    f.write(f"- Candidate {v[0]} vetoed by {v[1]}: {v[2]}\n")
             f.write("\n## Raw Votes Data\n```json\n")
             f.write(json.dumps(votes_data, indent=2, ensure_ascii=False))
             f.write("\n```\n")
