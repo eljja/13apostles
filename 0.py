@@ -282,14 +282,32 @@ Instructions:
         
         print(f"Evolution complete. Please run `python {new_filename}` to continue.")
 
-    def run(self, issue_prompt):
+    def _determine_issue_prompt(self):
+        script_name = os.path.basename(__file__)
+        base_name = os.path.splitext(script_name)[0]
+        
+        if len(base_name) <= 1:
+            return "Based on the CORE_OBJECTIVE.md, propose the most critical first step or feature to implement in the agent payload."
+        else:
+            parent_name = base_name[:-1]
+            parent_md_path = f"{parent_name}.md"
+            parent_content = self._read_file(parent_md_path)
+            
+            prompt = f"The previous evolutionary decision that created this current version was based on this log:\n\n{parent_content}\n\n"
+            prompt += "Analyze the previous decision and the current system state. What is the next logical evolutionary step to continue improving the system towards the Core Objective? Propose exactly ONE candidate."
+            return prompt
+
+    def run(self):
         # Always run payload first
         agent_payload()
 
         print("\nChecking for evolution triggers...")
         current_branch = self.get_current_branch()
         current_state_description = "The system is currently an AI Task Automation Engine basic stub, capable of self-modifying its own code to evolve."
-            
+        
+        issue_prompt = self._determine_issue_prompt()
+        print("\n[Autonomous Evolution Triggered]")
+        
         candidates = self.generate_candidates(current_state_description, issue_prompt)
         if not candidates: return
             
@@ -299,9 +317,5 @@ Instructions:
         self.apply_decision(current_branch, winner, candidates, votes_data, final_results, vetoes)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python 0.py <issue_prompt>")
-        sys.exit(1)
-        
     engine = EvolutionEngine(os.getcwd())
-    engine.run(sys.argv[1])
+    engine.run()
