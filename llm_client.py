@@ -2,8 +2,17 @@ import json
 import urllib.request
 import urllib.error
 import time
+import os
 
-API_KEY = "AIzaSyAfYzrSyZdX9_t_c1zNntg1Y6zU2-9SNjA"
+API_KEY = os.environ.get("GEMINI_API_KEY", "")
+if not API_KEY:
+    try:
+        with open(os.path.join(os.path.dirname(__file__), ".env"), "r") as f:
+            for line in f:
+                if line.startswith("GEMINI_API_KEY="):
+                    API_KEY = line.strip().split("=", 1)[1].strip('"\'')
+    except Exception:
+        pass
 MODELS = [
     "gemini-3-flash-preview",
     "gemini-3.1-flash-lite",
