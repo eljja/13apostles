@@ -291,6 +291,16 @@ elements_json = json.dumps(cy_elements)
 graph_h = 1000
 
 cy_html = f"""
+<style>
+  html, body {{
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+    width: 100%;
+    height: 100%;
+  }}
+</style>
 <div id="cy" style="width:100%;height:{graph_h}px;background:rgba(8,8,24,0.6);
      border:1px solid rgba(99,102,241,0.12);border-radius:10px;cursor:grab;"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
