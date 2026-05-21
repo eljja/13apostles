@@ -187,11 +187,11 @@ st.iframe("""
 
 
 # ─── Custom Decision Log Renderer ───────────────────────────────────────────
-def render_decision_log_with_tables(log_content: str, inspect_id: str):
+# ─── Custom Decision Log Renderers ──────────────────────────────────────────
+def render_decision_log_text(log_content: str):
     import re
-    import json
 
-    # 1. Try to find the Raw Votes Data JSON block
+    # Try to find the Raw Votes Data JSON block
     pattern = r'## Raw Votes Data\s*```json\s*(.*?)\s*```'
     match = re.search(pattern, log_content, re.DOTALL)
 
@@ -199,12 +199,25 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
         st.markdown(log_content)
         return
 
-    # Extract JSON content and markdown before it
-    raw_json_str = match.group(1).strip()
+    # Extract and render markdown before it
     markdown_before = log_content[:match.start()].strip()
-
-    # Render markdown before the raw votes data
     st.markdown(markdown_before)
+
+
+def render_decision_log_votes_table(log_content: str, inspect_id: str):
+    import re
+    import json
+
+    # Try to find the Raw Votes Data JSON block
+    pattern = r'## Raw Votes Data\s*```json\s*(.*?)\s*```'
+    match = re.search(pattern, log_content, re.DOTALL)
+
+    if not match:
+        st.info("No voting data available for this seed node.")
+        return
+
+    # Extract JSON content
+    raw_json_str = match.group(1).strip()
 
     # Parse the votes data
     try:
@@ -525,6 +538,9 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
     st.markdown(clean_leaderboard_html, unsafe_allow_html=True)
 
     st.markdown('### 🕵️ Detailed Apostle Votes')
+
+    # Parse candidate IDs for dropdown select
+    all_candidate_ids = sorted(list(all_candidate_ids), key=sort_key)
 
     selected_c_id = st.selectbox(
         "Select Candidate for Detailed Breakdown",
@@ -1065,11 +1081,23 @@ if inspect:
             lines = log.splitlines()
             if lines and lines[0].strip().startswith("# Decision Log:"):
                 log = "\n".join(lines[1:]).strip()
-            render_decision_log_with_tables(log, inspect)
+            
+            t_log, t_vote = st.tabs(["📋 Decision Log", "🗳️ Voting Results"])
+            with t_log:
+                render_decision_log_text(log)
+            with t_vote:
+                render_decision_log_votes_table(log, inspect)
         else:
             st.info("No decision log.")
     else:
-        t_code, t_log = st.tabs(["💻 Code", "📋 Decision Log"])
+        # Load decision log first to avoid duplicate calls
+        log = load_decision_log(WORKSPACE, inspect)
+        if log:
+            lines = log.splitlines()
+            if lines and lines[0].strip().startswith("# Decision Log:"):
+                log = "\n".join(lines[1:]).strip()
+
+        t_code, t_log, t_vote = st.tabs(["💻 Code", "📋 Decision Log", "🗳️ Voting Results"])
         with t_code:
             code = load_code(WORKSPACE, inspect)
             if code:
@@ -1077,15 +1105,15 @@ if inspect:
             else:
                 st.info("No source file.")
         with t_log:
-            log = load_decision_log(WORKSPACE, inspect)
             if log:
-                # Strip the redundant first-line title if it duplicates the visual header
-                lines = log.splitlines()
-                if lines and lines[0].strip().startswith("# Decision Log:"):
-                    log = "\n".join(lines[1:]).strip()
-                render_decision_log_with_tables(log, inspect)
+                render_decision_log_text(log)
             else:
                 st.info("No decision log.")
+        with t_vote:
+            if log:
+                render_decision_log_votes_table(log, inspect)
+            else:
+                st.info("No voting data available for this seed node.")
 
 # ─── Evolutionary Diversity Analyzer ─────────────────────────────────────────
 st.markdown("---")
