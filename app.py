@@ -141,28 +141,50 @@ hr { border-color: rgba(99,102,241,0.12) !important; margin: 12px 0 !important; 
     border-top: 1px solid rgba(99,102,241,0.1);
 }
 </style>
-<img src="x" onerror="
-  if (!window.hasStreamlitParamListener) {
-    window.hasStreamlitParamListener = true;
-    window.addEventListener('message', function(event) {
+""", unsafe_allow_html=True)
+
+# ─── Parent Window Event Listener Injection ──────────────────────────────────
+# We inject a script into the parent window using a 0-height iframe to bypass
+# Streamlit's st.markdown HTML sanitization of inline event handlers.
+st.components.v1.html("""
+<script>
+  const parentWin = window.parent;
+  if (!parentWin.hasStreamlitParamListener) {
+    parentWin.hasStreamlitParamListener = true;
+    parentWin.addEventListener('message', function(event) {
       if (event.data && event.data.type === 'streamlit:update_params') {
-        var params = event.data.params;
+        const params = event.data.params;
         try {
-          var url = new URL(window.location.href);
-          for (var key in params) {
+          const url = new URL(parentWin.location.href);
+          let changed = false;
+          for (const key in params) {
             if (params.hasOwnProperty(key)) {
-              url.searchParams.set(key, params[key]);
+              const oldVal = url.searchParams.get(key);
+              const newVal = String(params[key]);
+              
+              if (key === 'zoom' && oldVal !== null) {
+                if (Math.abs(parseFloat(oldVal) - parseFloat(newVal)) > 0.05) {
+                  url.searchParams.set(key, newVal);
+                  changed = true;
+                }
+              } else if (oldVal !== newVal) {
+                url.searchParams.set(key, newVal);
+                changed = true;
+              }
             }
           }
-          window.location.href = url.toString();
+          if (changed) {
+            parentWin.location.href = url.toString();
+          }
         } catch (e) {
-          console.error(e);
+          console.error("Failed to update parent URL:", e);
         }
       }
     });
   }
-" style="display:none;"/>
-""", unsafe_allow_html=True)
+</script>
+""", height=0)
+
 
 # ─── Data ───────────────────────────────────────────────────────────────────
 basenames = get_organism_basenames(WORKSPACE)
@@ -309,10 +331,20 @@ var cy = cytoscape({{
   userZoomingEnabled: true, userPanningEnabled: true,
   boxSelectionEnabled: false, autoungrabify: false,
   minZoom: 0.1, maxZoom: 5.0,
-  wheelSensitivity: 0.25,
+  wheelSensitivity: 0.12,
 }});
 cy.ready(function() {{
     cy.center();
+    var inspectType = '{inspect_type}';
+    var inspectId = '{inspect_id}';
+    if (inspectType === 'edge') {{
+        cy.edges('[source = "' + inspectId + '"]').addClass('tapped');
+    }} else {{
+        var activeNode = cy.getElementById(inspectId);
+        if (activeNode.length > 0) {{
+            activeNode.addClass('tapped');
+        }}
+    }}
 }});
 function updateParent(params) {{
   try {{
