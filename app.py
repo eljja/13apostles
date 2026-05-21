@@ -624,6 +624,10 @@ if inspect:
     if inspect_type == "edge":
         log = load_decision_log(WORKSPACE, inspect)
         if log:
+            # Strip the redundant first-line title if it duplicates the visual header
+            lines = log.splitlines()
+            if lines and lines[0].strip().startswith("# Decision Log:"):
+                log = "\n".join(lines[1:]).strip()
             st.markdown(log)
         else:
             st.info("No decision log.")
@@ -638,6 +642,10 @@ if inspect:
         with t_log:
             log = load_decision_log(WORKSPACE, inspect)
             if log:
+                # Strip the redundant first-line title if it duplicates the visual header
+                lines = log.splitlines()
+                if lines and lines[0].strip().startswith("# Decision Log:"):
+                    log = "\n".join(lines[1:]).strip()
                 st.markdown(log)
             else:
                 st.info("No decision log.")
