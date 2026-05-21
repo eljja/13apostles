@@ -5,6 +5,7 @@ import re
 import subprocess
 import py_compile
 from llm_client import LLMClient
+from tree_parser import get_organism_basenames, find_root_seeds
 
 
 class EvolutionEngine:
@@ -17,6 +18,7 @@ class EvolutionEngine:
         self.core_objective = self._read_file("CORE_OBJECTIVE.md")
         self.candidate_format = self._read_file("CANDIDATE_FORMAT.md")
         self.voting_format = self._read_file("VOTING_FORMAT.md")
+        self.local_objective = self._load_local_objective()
 
     def _read_file(self, filename):
         path = os.path.join(self.workspace_dir, filename)
@@ -37,16 +39,55 @@ class EvolutionEngine:
                 apostles.append({"id": filename.split("_")[0], "name": name, "content": content})
         return apostles
 
+    def _find_root_basename(self) -> str:
+        """Find the root seed basename for the current target."""
+        basenames = get_organism_basenames(self.workspace_dir)
+        roots = find_root_seeds(basenames)
+        # The root is the shortest basename that is a prefix of target_basename
+        prefixes = [r for r in roots if self.target_basename.startswith(r)]
+        if prefixes:
+            return min(prefixes, key=len)
+        return self.target_basename
+
+    def _load_local_objective(self) -> str | None:
+        """Load the seed-specific objective file if it exists."""
+        root = self._find_root_basename()
+        obj_path = os.path.join(self.workspace_dir, f"{root}.objective.md")
+        if os.path.exists(obj_path):
+            with open(obj_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        return None
+
     def _determine_issue_prompt(self):
-        if len(self.target_basename) <= 1:
-            return f"The system's Core Objective is:\n\n{self.core_objective}\n\nPropose the most critical first evolutionary step for this program."
+        local_obj_section = ""
+        if self.local_objective:
+            local_obj_section = f"\nOrganism-Specific Objective:\n{self.local_objective}\n"
+
+        basenames = get_organism_basenames(self.workspace_dir)
+        roots = find_root_seeds(basenames)
+        is_root = self.target_basename in roots
+
+        if is_root:
+            return (
+                f"The system's Core Objective is:\n\n{self.core_objective}"
+                f"{local_obj_section}\n"
+                f"Propose the most critical first evolutionary step for this program."
+            )
         else:
             parent_name = self.target_basename[:-1]
             parent_md = self._read_file(f"{parent_name}.md")
             if parent_md:
-                return f"The previous evolutionary decision that led to the current version:\n\n{parent_md}\n\nPropose the next logical evolutionary step."
+                return (
+                    f"The previous evolutionary decision that led to the current version:\n\n{parent_md}"
+                    f"{local_obj_section}\n"
+                    f"Propose the next logical evolutionary step."
+                )
             else:
-                return f"The system's Core Objective is:\n\n{self.core_objective}\n\nPropose the next evolutionary step for this program."
+                return (
+                    f"The system's Core Objective is:\n\n{self.core_objective}"
+                    f"{local_obj_section}\n"
+                    f"Propose the next evolutionary step for this program."
+                )
 
     def get_current_branch(self):
         result = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True, cwd=self.workspace_dir)
@@ -58,14 +99,17 @@ class EvolutionEngine:
 
         for apostle in self.apostles:
             print(f"Asking {apostle['name']} Apostle for a proposal...")
+            local_obj_section = ""
+            if self.local_objective:
+                local_obj_section = f"\nOrganism-Specific Objective:\n{self.local_objective}\n"
+
             prompt = f"""
 You are the {apostle['name']} Apostle.
 Your Persona:
 {apostle['content']}
 
 System Core Objective:
-{self.core_objective}
-
+{self.core_objective}{local_obj_section}
 Current Target Code ({self.target_file}):
 ```python
 {target_code}
@@ -246,6 +290,8 @@ Instructions:
                 for v in vetoes:
                     f.write(f"- Candidate {v[0]} vetoed by {v[1]}: {v[2]}\n")
             f.write("\n## Children Spawned\n")
+            if not children_info:
+                f.write("\n⚠️ **ALL DROPPED** — No viable children were spawned in this generation.\n")
             for ci in children_info:
                 f.write(f"- **{ci['filename']}** <- [{ci['id']}] {ci['title']}\n")
             f.write("\n## Raw Votes Data\n```json\n")
@@ -258,6 +304,10 @@ Instructions:
         new_name = f"{self.target_basename}{winner['id']}"
         new_filename = f"{new_name}.py"
         new_filepath = os.path.join(self.workspace_dir, new_filename)
+
+        if os.path.exists(new_filepath):
+            print(f"Child file '{new_filename}' already exists. Skipping LLM generation and reusing existing file.")
+            return {"id": winner['id'], "title": winner['title'], "filename": new_filename, "name": new_name}
 
         new_code = self.mutate_code(target_code, winner, candidates)
         if not new_code:
@@ -303,26 +353,27 @@ Instructions:
         valid_results = [r for r in final_results if not r['vetoed']]
         winners = valid_results[:num_children]
 
-        if not winners:
-            print("ALL CANDIDATES VETOED. No children spawned.")
-            return []
-
-        print(f"\n--- Spawning {len(winners)} children ---")
         children_info = []
-        for w in winners:
-            child = self._spawn_child(w, candidates, target_code)
-            if child:
-                children_info.append(child)
+        if not winners:
+            print("ALL CANDIDATES DROPPED. No children spawned.")
+        else:
+            print(f"\n--- Spawning {len(winners)} children ---")
+            for w in winners:
+                child = self._spawn_child(w, candidates, target_code)
+                if child:
+                    children_info.append(child)
 
-        # Write decision log
+        # Always write decision log (even on all-drop)
         self._write_decision_log(candidates, final_results, vetoes, votes_data, children_info)
 
-        # Git: commit all changes on the current branch
-        subprocess.run(["git", "add", "."], cwd=self.workspace_dir)
-        child_names = ", ".join([c['filename'] for c in children_info])
-        subprocess.run(["git", "commit", "-m",
-                         f"Evolve {self.target_basename}: spawn {child_names}"],
-                        cwd=self.workspace_dir)
+        # Git: commit all changes on the current branch (DISABLED BY USER)
+        # subprocess.run(["git", "add", "."], cwd=self.workspace_dir)
+        # if children_info:
+        #     child_names = ", ".join([c['filename'] for c in children_info])
+        #     commit_msg = f"Evolve {self.target_basename}: spawn {child_names}"
+        # else:
+        #     commit_msg = f"Evolve {self.target_basename}: all dropped"
+        # subprocess.run(["git", "commit", "-m", commit_msg], cwd=self.workspace_dir)
 
         print(f"\nEvolution complete!")
         print(f"  Decision log: {self.target_basename}.md")

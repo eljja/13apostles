@@ -4,20 +4,29 @@ import urllib.error
 import time
 import os
 
-API_KEY = os.environ.get("GEMINI_API_KEY", "")
+API_KEY = ""
+# 1. Try local .env file first
+try:
+    with open(os.path.join(os.path.dirname(__file__), ".env"), "r") as f:
+        for line in f:
+            if line.startswith("GEMINI_API_KEY="):
+                API_KEY = line.strip().split("=", 1)[1].strip('"\'')
+except Exception:
+    pass
+
+# 2. Fall back to system environment variables
 if not API_KEY:
-    try:
-        with open(os.path.join(os.path.dirname(__file__), ".env"), "r") as f:
-            for line in f:
-                if line.startswith("GEMINI_API_KEY="):
-                    API_KEY = line.strip().split("=", 1)[1].strip('"\'')
-    except Exception:
-        pass
+    API_KEY = os.environ.get("GEMINI_API_KEY", "")
 MODELS = [
+    "gemini-flash-latest",
+    "gemini-3.5-flash",
     "gemini-3-flash-preview",
-    "gemini-3.1-flash-lite",
     "gemini-3.1-flash-lite-preview",
-    "gemini-3.1-pro-preview"
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.1-pro-preview",
+    "gemini-2.5-pro"
 ]
 
 class LLMClient:
@@ -25,7 +34,7 @@ class LLMClient:
         self.api_key = api_key
         self.models = models
 
-    def generate_content(self, prompt, max_retries=3, timeout=30):
+    def generate_content(self, prompt, max_retries=2, timeout=30):
         headers = {
             "Content-Type": "application/json"
         }
