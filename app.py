@@ -149,6 +149,22 @@ all_edges = build_edges(basenames)
 descriptions = parse_decision_log_descriptions(WORKSPACE, basenames)
 roots = find_root_seeds(basenames)
 
+# ─── Read query params for click selection and zoom ─────────────────────────
+params = st.query_params
+inspect_id = params.get("inspect", basenames[-1] if basenames else "0")
+inspect_type = params.get("type", "node")
+if inspect_id not in basenames and basenames:
+    inspect_id = basenames[-1]
+    inspect_type = "node"
+
+idx = basenames.index(inspect_id) if inspect_id in basenames else (len(basenames)-1 if basenames else 0)
+
+try:
+    zoom_val = float(params.get("zoom", 1.0))
+except Exception:
+    zoom_val = 1.0
+zoom_val = max(0.3, min(3.0, zoom_val))
+
 next_root_id = "0"
 if roots:
     ints = []
@@ -168,7 +184,10 @@ with h2:
 with h3:
     edge_length = st.slider("Arrow Length", 10, 150, 30)
 with h4:
-    zoom_level = st.slider("Zoom", 0.3, 3.0, 1.0, step=0.1)
+    zoom_level = st.slider("Zoom", 0.3, 3.0, zoom_val, step=0.05)
+    if zoom_level != zoom_val:
+        st.query_params["zoom"] = f"{zoom_level:.2f}"
+        st.rerun()
 with h5:
     st.markdown("<br>", unsafe_allow_html=True)
     c_btn1, c_btn2 = st.columns(2)
@@ -192,13 +211,7 @@ if not basenames:
     st.info("No organisms found. Create a seed file like `0.py`.")
     st.stop()
 
-# ─── Read query params for click selection ──────────────────────────────────
-params = st.query_params
-inspect_id = params.get("inspect", basenames[-1])
-inspect_type = params.get("type", "node")
-if inspect_id not in basenames:
-    inspect_id = basenames[-1]
-    inspect_type = "node"
+# Query parameters are processed globally above
 
 # ─── Cytoscape.js Interactive Graph ─────────────────────────────────────────
 st.markdown(
@@ -268,6 +281,7 @@ var cy = cytoscape({{
   userZoomingEnabled: true, userPanningEnabled: true,
   boxSelectionEnabled: false, autoungrabify: false,
   minZoom: 0.1, maxZoom: 5.0,
+  wheelSensitivity: 0.25,
 }});
 cy.ready(function() {{
     cy.center();
@@ -294,6 +308,19 @@ cy.on('tap', 'edge', function(e) {{
     window.parent.location.href = url.toString();
   }} catch(err) {{ }}
 }});
+
+var zoomTimeout;
+cy.on('zoom', function(e) {{
+  clearTimeout(zoomTimeout);
+  zoomTimeout = setTimeout(function() {{
+    var z = cy.zoom();
+    try {{
+      var url = new URL(window.parent.location);
+      url.searchParams.set('zoom', z.toFixed(2));
+      window.parent.location.href = url.toString();
+    }} catch(err) {{ }}
+  }}, 800);
+}});
 </script>
 """
 st.components.v1.html(cy_html, height=graph_h + 10, scrolling=False)
@@ -302,7 +329,11 @@ st.components.v1.html(cy_html, height=graph_h + 10, scrolling=False)
 st.markdown("---")
 c1, c2, c3, c4, c5, c6 = st.columns([3, 2, 2, 2, 2, 3])
 with c1:
-    target_node = st.selectbox("Evolve from", basenames, format_func=lambda x: f"{x}.py", index=len(basenames)-1)
+    target_node = st.selectbox("Evolve from", basenames, format_func=lambda x: f"{x}.py", index=idx)
+    if target_node != inspect_id:
+        st.query_params["inspect"] = target_node
+        st.query_params["type"] = "node"
+        st.rerun()
 with c2:
     num_children = st.slider("Children", 1, 13, 1)
 with c3:
@@ -460,8 +491,6 @@ if "latest_status" in st.session_state and st.session_state.latest_status:
 # ─── Inspector (auto-selected from graph click) ────────────────────────────
 st.markdown("---")
 st.markdown('<p class="section-label">🔍 Inspector</p>', unsafe_allow_html=True)
-
-idx = basenames.index(inspect_id) if inspect_id in basenames else len(basenames)-1
 
 inspect = st.selectbox(
     "Node", basenames,
