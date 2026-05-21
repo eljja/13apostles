@@ -141,6 +141,27 @@ hr { border-color: rgba(99,102,241,0.12) !important; margin: 12px 0 !important; 
     border-top: 1px solid rgba(99,102,241,0.1);
 }
 </style>
+<img src="x" onerror="
+  if (!window.hasStreamlitParamListener) {
+    window.hasStreamlitParamListener = true;
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'streamlit:update_params') {
+        var params = event.data.params;
+        try {
+          var url = new URL(window.location.href);
+          for (var key in params) {
+            if (params.hasOwnProperty(key)) {
+              url.searchParams.set(key, params[key]);
+            }
+          }
+          window.location.href = url.toString();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
+  }
+" style="display:none;"/>
 """, unsafe_allow_html=True)
 
 # ─── Data ───────────────────────────────────────────────────────────────────
@@ -151,8 +172,15 @@ roots = find_root_seeds(basenames)
 
 # ─── Read query params for click selection and zoom ─────────────────────────
 params = st.query_params
-inspect_id = params.get("inspect", basenames[-1] if basenames else "0")
-inspect_type = params.get("type", "node")
+
+def get_param(name, default):
+    val = params.get(name, default)
+    if isinstance(val, (list, tuple)):
+        return val[0] if val else default
+    return val
+
+inspect_id = get_param("inspect", basenames[-1] if basenames else "0")
+inspect_type = get_param("type", "node")
 if inspect_id not in basenames and basenames:
     inspect_id = basenames[-1]
     inspect_type = "node"
@@ -160,7 +188,7 @@ if inspect_id not in basenames and basenames:
 idx = basenames.index(inspect_id) if inspect_id in basenames else (len(basenames)-1 if basenames else 0)
 
 try:
-    zoom_val = float(params.get("zoom", 1.0))
+    zoom_val = float(get_param("zoom", 1.0))
 except Exception:
     zoom_val = 1.0
 zoom_val = max(0.3, min(3.0, zoom_val))
@@ -287,34 +315,13 @@ cy.ready(function() {{
     cy.center();
 }});
 function updateParent(params) {{
-  var parentUrl;
   try {{
-    parentUrl = window.parent.location.href;
-  }} catch (e) {{
-    parentUrl = document.referrer;
-  }}
-  if (!parentUrl || parentUrl === "about:srcdoc") {{
-    parentUrl = window.location.href;
-  }}
-  try {{
-    var url = new URL(parentUrl);
-    for (var key in params) {{
-      if (params.hasOwnProperty(key)) {{
-        url.searchParams.set(key, params[key]);
-      }}
-    }}
-    try {{
-      window.parent.location.href = url.toString();
-    }} catch (e) {{
-      var a = document.createElement('a');
-      a.href = url.toString();
-      a.target = '_parent';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }}
+    window.parent.postMessage({{
+      type: 'streamlit:update_params',
+      params: params
+    }}, '*');
   }} catch (err) {{
-    console.error("Redirection failed:", err);
+    console.error("postMessage failed:", err);
   }}
 }}
 
