@@ -286,27 +286,50 @@ var cy = cytoscape({{
 cy.ready(function() {{
     cy.center();
 }});
+function updateParent(params) {{
+  var parentUrl;
+  try {{
+    parentUrl = window.parent.location.href;
+  }} catch (e) {{
+    parentUrl = document.referrer;
+  }}
+  if (!parentUrl || parentUrl === "about:srcdoc") {{
+    parentUrl = window.location.href;
+  }}
+  try {{
+    var url = new URL(parentUrl);
+    for (var key in params) {{
+      if (params.hasOwnProperty(key)) {{
+        url.searchParams.set(key, params[key]);
+      }}
+    }}
+    try {{
+      window.parent.location.href = url.toString();
+    }} catch (e) {{
+      var a = document.createElement('a');
+      a.href = url.toString();
+      a.target = '_parent';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }}
+  }} catch (err) {{
+    console.error("Redirection failed:", err);
+  }}
+}}
+
 cy.on('tap', 'node', function(e) {{
   var id = e.target.id();
   cy.elements().removeClass('tapped');
   e.target.addClass('tapped');
-  try {{
-    var url = new URL(window.parent.location);
-    url.searchParams.set('inspect', id);
-    url.searchParams.set('type', 'node');
-    window.parent.location.href = url.toString();
-  }} catch(err) {{ }}
+  updateParent({{ 'inspect': id, 'type': 'node' }});
 }});
+
 cy.on('tap', 'edge', function(e) {{
   var src = e.target.source().id();
   cy.elements().removeClass('tapped');
   e.target.addClass('tapped');
-  try {{
-    var url = new URL(window.parent.location);
-    url.searchParams.set('inspect', src);
-    url.searchParams.set('type', 'edge');
-    window.parent.location.href = url.toString();
-  }} catch(err) {{ }}
+  updateParent({{ 'inspect': src, 'type': 'edge' }});
 }});
 
 var zoomTimeout;
@@ -314,11 +337,7 @@ cy.on('zoom', function(e) {{
   clearTimeout(zoomTimeout);
   zoomTimeout = setTimeout(function() {{
     var z = cy.zoom();
-    try {{
-      var url = new URL(window.parent.location);
-      url.searchParams.set('zoom', z.toFixed(2));
-      window.parent.location.href = url.toString();
-    }} catch(err) {{ }}
+    updateParent({{ 'zoom': z.toFixed(2) }});
   }}, 800);
 }});
 </script>
