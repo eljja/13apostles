@@ -113,11 +113,57 @@ def load_objective(workspace_dir: str, root_basename: str) -> str | None:
 
 
 def load_decision_log(workspace_dir: str, basename: str) -> str | None:
-    """Load the full decision log .md for a node, if it exists."""
+    """Load the full decision log .md for a node, or dynamically extract it from ancestors."""
     md_path = os.path.join(workspace_dir, f"{basename}.md")
     if os.path.exists(md_path):
         with open(md_path, 'r', encoding='utf-8') as f:
             return f.read()
+
+    # Fallback: extract from nearest ancestor .md file
+    basenames = get_organism_basenames(workspace_dir)
+    ancestors = [b for b in basenames if b != basename and basename.startswith(b)]
+    ancestors = sorted(ancestors, key=len, reverse=True)
+
+    for ancestor in ancestors:
+        anc_md_path = os.path.join(workspace_dir, f"{ancestor}.md")
+        if os.path.exists(anc_md_path):
+            try:
+                with open(anc_md_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                # Search for basename in the ancestor's spawned list to get the candidate key
+                pattern = r'-\s*\*\*' + re.escape(basename) + r'\.py\*\*\s*<-\s*\[(.*?)\]'
+                match = re.search(pattern, content, re.IGNORECASE)
+                if match:
+                    key = match.group(1).strip()
+
+                    # Find the candidate section starting with `### [key]`
+                    sec_pattern = r'^###\s*\[\s*' + re.escape(key) + r'\s*\].*$'
+                    sec_match = re.search(sec_pattern, content, re.MULTILINE)
+                    if sec_match:
+                        start_idx = sec_match.end()
+
+                        # Try to extract the markdown code block inside the section
+                        code_start_match = re.search(r'```(?:markdown)?\s*\n', content[start_idx:], re.IGNORECASE)
+                        if code_start_match:
+                            block_start = start_idx + code_start_match.end()
+                            code_end_match = re.search(r'\n```', content[block_start:])
+                            if code_end_match:
+                                block_end = block_start + code_end_match.start()
+                                extracted_content = content[block_start:block_end].strip()
+                                return f"# Decision Log for {basename}.py\n*Extracted from candidate [{key}] in {ancestor}.md*\n\n{extracted_content}"
+
+                        # If no markdown code block is found, extract until the next header
+                        end_pattern = r'^(?:###|##)\s'
+                        end_match = re.search(end_pattern, content[start_idx:], re.MULTILINE)
+                        if end_match:
+                            sec_content = content[start_idx : start_idx + end_match.start()].strip()
+                        else:
+                            sec_content = content[start_idx:].strip()
+                        return f"# Decision Log for {basename}.py\n*Extracted from candidate [{key}] in {ancestor}.md*\n\n{sec_content}"
+            except Exception:
+                pass
+
     return None
 
 
