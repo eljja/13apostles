@@ -201,6 +201,10 @@ def get_param(name, default):
         return val[0] if val else default
     return val
 
+reset_layout = get_param("reset_layout", "false")
+if reset_layout == "true":
+    st.query_params["reset_layout"] = "false"
+
 inspect_id = get_param("inspect", basenames[-1] if basenames else "0")
 inspect_type = get_param("type", "node")
 if inspect_id not in basenames and basenames:
@@ -242,7 +246,8 @@ with h5:
     st.markdown("<br>", unsafe_allow_html=True)
     c_btn1, c_btn2 = st.columns(2)
     with c_btn1:
-        if st.button("🔄", key="refresh", help="Refresh"):
+        if st.button("🔄", key="refresh", help="Refresh and Reset Layout"):
+            st.query_params["reset_layout"] = "true"
             st.rerun()
     with c_btn2:
         with st.popover("➕", help="Add New Root"):
@@ -290,9 +295,60 @@ cy_html = f"""
      border:1px solid rgba(99,102,241,0.12);border-radius:10px;cursor:grab;"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
 <script>
+var resetLayout = '{reset_layout}';
+if (resetLayout === 'true') {{
+  try {{
+    localStorage.removeItem('13apostles:node_positions');
+  }} catch(e) {{}}
+}}
+
+var savedPositions = null;
+try {{
+  savedPositions = JSON.parse(localStorage.getItem('13apostles:node_positions')) || {{}};
+}} catch(e) {{}}
+
+var hasAllPositions = true;
+var elements = {elements_json};
+var nodesOnly = elements.filter(function(el) {{ return el.data && !el.data.source; }});
+nodesOnly.forEach(function(node) {{
+  if (!savedPositions[node.data.id]) {{
+    hasAllPositions = false;
+  }}
+}});
+
+var layoutConfig;
+if (hasAllPositions && resetLayout !== 'true') {{
+  layoutConfig = {{
+    name: 'preset',
+    positions: function(node) {{
+      return savedPositions[node.id()];
+    }}
+  }};
+}} else {{
+  layoutConfig = {{
+    name: 'cose',
+    animate: false, fit: false, padding: 40,
+    nodeRepulsion: function(){{ return 12000; }},
+    idealEdgeLength: function(){{ return {edge_length}; }},
+    edgeElasticity: function(){{ return 80; }},
+    gravity: 0.6, numIter: 800,
+    componentSpacing: 140,
+  }};
+}}
+
+function savePositions() {{
+  var positions = {{}};
+  cy.nodes().forEach(function(node) {{
+    positions[node.id()] = node.position();
+  }});
+  try {{
+    localStorage.setItem('13apostles:node_positions', JSON.stringify(positions));
+  }} catch(e) {{}}
+}}
+
 var cy = cytoscape({{
   container: document.getElementById('cy'),
-  elements: {elements_json},
+  elements: elements,
   style: [
     {{ selector: 'node', style: {{
         'label': 'data(label)', 'background-opacity': 0,
@@ -318,15 +374,7 @@ var cy = cytoscape({{
         'width': 3, 'opacity': 1,
     }} }},
   ],
-  layout: {{
-    name: 'cose',
-    animate: false, fit: false, padding: 40,
-    nodeRepulsion: function(){{ return 12000; }},
-    idealEdgeLength: function(){{ return {edge_length}; }},
-    edgeElasticity: function(){{ return 80; }},
-    gravity: 0.6, numIter: 800,
-    componentSpacing: 140,
-  }},
+  layout: layoutConfig,
   zoom: {zoom_level},
   userZoomingEnabled: true, userPanningEnabled: true,
   boxSelectionEnabled: false, autoungrabify: false,
@@ -334,7 +382,10 @@ var cy = cytoscape({{
   wheelSensitivity: 0.12,
 }});
 cy.ready(function() {{
-    cy.center();
+    if (!hasAllPositions || resetLayout === 'true') {{
+      cy.center();
+      savePositions();
+    }}
     var inspectType = '{inspect_type}';
     var inspectId = '{inspect_id}';
     if (inspectType === 'edge') {{
@@ -345,6 +396,14 @@ cy.ready(function() {{
             activeNode.addClass('tapped');
         }}
     }}
+}});
+
+cy.on('free', 'node', function() {{
+  savePositions();
+}});
+
+cy.on('layoutstop', function() {{
+  savePositions();
 }});
 function updateParent(params) {{
   try {{
