@@ -186,6 +186,385 @@ st.iframe("""
 """, height=1)
 
 
+# ─── Custom Decision Log Renderer ───────────────────────────────────────────
+def render_decision_log_with_tables(log_content: str, inspect_id: str):
+    import re
+    import json
+
+    # 1. Try to find the Raw Votes Data JSON block
+    pattern = r'## Raw Votes Data\s*```json\s*(.*?)\s*```'
+    match = re.search(pattern, log_content, re.DOTALL)
+
+    if not match:
+        st.markdown(log_content)
+        return
+
+    # Extract JSON content and markdown before it
+    raw_json_str = match.group(1).strip()
+    markdown_before = log_content[:match.start()].strip()
+
+    # Render markdown before the raw votes data
+    st.markdown(markdown_before)
+
+    # Parse the votes data
+    try:
+        votes_data = json.loads(raw_json_str)
+    except Exception as e:
+        st.markdown("### Raw Votes Data")
+        st.code(raw_json_str, language="json")
+        return
+
+    # 2. Extract Candidate titles
+    candidate_titles = {}
+    for m in re.finditer(r'^###\s*\[\s*([^\]\s]+)\s*\]\s*(.*?)$', log_content, re.MULTILINE):
+        c_id = m.group(1).strip()
+        title = m.group(2).strip()
+        candidate_titles[c_id] = title
+
+    # 3. Extract Children Spawned
+    spawned_candidates = {}
+    for m in re.finditer(r'-\s*\*\*(.*?)\.py\*\*\s*<-\s*\[(.*?)\]', log_content):
+        child_base = m.group(1).strip()
+        c_id = m.group(2).strip()
+        spawned_candidates[c_id] = child_base
+
+    # 4. Extract Veto details
+    veto_details = {}
+    for m in re.finditer(r'-\s*Candidate\s*\[?([^\s\]]+)\]?\s*vetoed\s*by\s*([^:]+):\s*(.*?)$', log_content, re.MULTILINE):
+        c_id = m.group(1).strip()
+        apostle = m.group(2).strip()
+        reason = m.group(3).strip()
+        if c_id not in veto_details:
+            veto_details[c_id] = []
+        veto_details[c_id].append({"apostle": apostle, "reason": reason})
+
+    # 5. Identify candidates and calculate scores
+    all_candidate_ids = set()
+    for apostle_name, votes in votes_data.items():
+        for v in votes:
+            if 'candidate_id' in v:
+                all_candidate_ids.add(str(v['candidate_id']))
+
+    def sort_key(c_id):
+        try:
+            return (0, int(c_id))
+        except ValueError:
+            return (1, c_id)
+
+    all_candidate_ids = sorted(list(all_candidate_ids), key=sort_key)
+
+    scores = {c_id: {"impact": 0, "feasibility": 0, "alignment": 0, "safety": 0, "cost": 0, "veto": False} for c_id in all_candidate_ids}
+
+    for apostle_name, votes in votes_data.items():
+        for v in votes:
+            c_id = str(v.get('candidate_id'))
+            if c_id not in scores:
+                continue
+            if v.get('veto', False):
+                scores[c_id]['veto'] = True
+
+            scores[c_id]['impact'] += v.get('impact_score', 0)
+            scores[c_id]['feasibility'] += v.get('feasibility_score', 0)
+            scores[c_id]['alignment'] += v.get('alignment_score', 0)
+            scores[c_id]['safety'] += v.get('safety_multiplier', 1.0)
+            scores[c_id]['cost'] += v.get('cost_multiplier', 1.0)
+
+    final_results = []
+    for c_id in all_candidate_ids:
+        s = scores[c_id]
+        if s['veto']:
+            final_score = 0.0
+        else:
+            cost = max(s['cost'], 1.0)
+            final_score = (s['impact'] * s['feasibility'] * s['alignment'] * s['safety']) / cost
+
+        final_results.append({
+            "id": c_id,
+            "title": candidate_titles.get(c_id, f"Candidate {c_id}"),
+            "scores": s,
+            "final_score": final_score,
+            "vetoed": s['veto']
+        })
+
+    final_results.sort(key=lambda x: (not x['vetoed'], x['final_score']), reverse=True)
+
+    # 6. Render styles and Aggregated Table
+    styles = """
+    <style>
+    .decision-table-container {
+        margin: 20px 0;
+        width: 100%;
+    }
+    .decision-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(13, 17, 23, 0.7);
+        border: 1px solid rgba(99, 102, 241, 0.15);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 25px;
+        font-size: 0.85em;
+    }
+    .decision-table th {
+        background: rgba(99, 102, 241, 0.12);
+        color: #c7d2fe;
+        font-weight: 600;
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+    }
+    .decision-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+        color: #e2e2f0;
+        vertical-align: middle;
+    }
+    .decision-table tr:hover {
+        background: rgba(99, 102, 241, 0.04);
+    }
+    .decision-table tr.adopted-row {
+        background: rgba(16, 185, 129, 0.06) !important;
+        border-left: 4px solid #10b981 !important;
+    }
+    .decision-table tr.vetoed-row {
+        background: rgba(239, 68, 68, 0.03) !important;
+    }
+    .decision-table tr.vetoed-row td {
+        color: rgba(226, 226, 240, 0.55);
+    }
+    .val-pill {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 5px;
+        font-weight: 600;
+        font-size: 0.9em;
+    }
+    .val-emerald {
+        color: #34d399;
+        background: rgba(16, 185, 129, 0.12);
+    }
+    .val-amber {
+        color: #fbbf24;
+        background: rgba(251, 191, 36, 0.12);
+    }
+    .val-rose {
+        color: #f87171;
+        background: rgba(239, 68, 68, 0.12);
+    }
+    .val-neutral {
+        color: #9ca3af;
+        background: rgba(156, 163, 175, 0.08);
+    }
+    .status-badge {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.75em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .status-adopted {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+    }
+    .status-vetoed {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .status-evaluated {
+        background: rgba(156, 163, 175, 0.15);
+        color: #d1d5db;
+        border: 1px solid rgba(156, 163, 175, 0.25);
+    }
+    .veto-reason-tooltip {
+        text-decoration: underline dotted;
+        cursor: help;
+        color: #f87171;
+    }
+    .reason-cell {
+        cursor: help;
+        color: #a5b4fc;
+        font-size: 1.1em;
+        text-align: center;
+    }
+    </style>
+    """
+    st.markdown(styles, unsafe_allow_html=True)
+
+    st.markdown('### 📊 Candidates Leaderboard')
+
+    table_rows = []
+    for r in final_results:
+        c_id = r['id']
+        title = r['title']
+        s = r['scores']
+        f_score = r['final_score']
+        vetoed = r['vetoed']
+
+        is_adopted = c_id in spawned_candidates
+        if is_adopted:
+            child_base = spawned_candidates[c_id]
+            status_html = f'<span class="status-badge status-adopted" title="Spawned organism: {child_base}.py">Adopted</span>'
+            row_class = 'class="adopted-row"'
+        elif vetoed:
+            v_reasons_str = " | ".join([f"{v['apostle']}: {v['reason']}" for v in veto_details.get(c_id, [])])
+            if not v_reasons_str:
+                v_reasons_str = "Vetoed by Apostle"
+            status_html = f'<span class="status-badge status-vetoed veto-reason-tooltip" title="{v_reasons_str}">Vetoed</span>'
+            row_class = 'class="vetoed-row"'
+        else:
+            status_html = '<span class="status-badge status-evaluated">Evaluated</span>'
+            row_class = ''
+
+        imp_class = 'val-emerald' if s['impact'] >= 45 else ('val-amber' if s['impact'] >= 30 else 'val-rose')
+        imp_html = f'<span class="val-pill {imp_class}">{s["impact"]}</span>'
+
+        feas_class = 'val-emerald' if s['feasibility'] >= 45 else ('val-amber' if s['feasibility'] >= 30 else 'val-rose')
+        feas_html = f'<span class="val-pill {feas_class}">{s["feasibility"]}</span>'
+
+        al_class = 'val-emerald' if s['alignment'] >= 45 else ('val-amber' if s['alignment'] >= 30 else 'val-rose')
+        al_html = f'<span class="val-pill {al_class}">{s["alignment"]}</span>'
+
+        safe_class = 'val-emerald' if s['safety'] >= 15.0 else ('val-amber' if s['safety'] >= 11.0 else 'val-rose')
+        safe_html = f'<span class="val-pill {safe_class}">{s["safety"]:.2f}</span>'
+
+        cost_class = 'val-emerald' if s['cost'] <= 12.0 else ('val-amber' if s['cost'] <= 15.0 else 'val-rose')
+        cost_html = f'<span class="val-pill {cost_class}">{s["cost"]:.2f}</span>'
+
+        if vetoed:
+            fs_html = '<span class="val-pill val-rose">VETOED</span>'
+        else:
+            fs_html = f'<span class="val-pill val-emerald" style="font-weight:700;">{f_score:.2f}</span>'
+
+        table_rows.append(f"""
+        <tr {row_class}>
+            <td style="font-weight: 700; color: #a5b4fc; text-align: center;">[{c_id}]</td>
+            <td style="font-weight: 600; color: #f8fafc;">{title}</td>
+            <td style="text-align: center;">{status_html}</td>
+            <td style="text-align: center;">{imp_html}</td>
+            <td style="text-align: center;">{feas_html}</td>
+            <td style="text-align: center;">{al_html}</td>
+            <td style="text-align: center;">{safe_html}</td>
+            <td style="text-align: center;">{cost_html}</td>
+            <td style="text-align: center;">{fs_html}</td>
+        </tr>
+        """)
+
+    leaderboard_html = f"""
+    <div class="decision-table-container">
+        <table class="decision-table">
+            <thead>
+                <tr>
+                    <th style="width: 6%; text-align: center;">ID</th>
+                    <th style="width: 32%;">Candidate Name</th>
+                    <th style="width: 12%; text-align: center;">Status</th>
+                    <th style="width: 9%; text-align: center;">Impact ⚡</th>
+                    <th style="width: 9%; text-align: center;">Feas. 🛠️</th>
+                    <th style="width: 9%; text-align: center;">Align. 🎯</th>
+                    <th style="width: 9%; text-align: center;">Safety 🛡️</th>
+                    <th style="width: 9%; text-align: center;">Cost 💎</th>
+                    <th style="width: 10%; text-align: center;">Final Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {"".join(table_rows)}
+            </tbody>
+        </table>
+    </div>
+    """
+    st.markdown(leaderboard_html, unsafe_allow_html=True)
+
+    st.markdown('### 🕵️ Detailed Apostle Votes')
+
+    selected_c_id = st.selectbox(
+        "Select Candidate for Detailed Breakdown",
+        all_candidate_ids,
+        format_func=lambda x: f"[{x}] {candidate_titles.get(x, f'Candidate {x}')}" + (" (Adopted)" if x in spawned_candidates else (" (Vetoed)" if scores[x]["veto"] else "")),
+        key=f"detailed_votes_{inspect_id}"
+    )
+
+    if selected_c_id:
+        apostle_rows = []
+        sorted_apostles = sorted(votes_data.keys())
+
+        for name in sorted_apostles:
+            apostle_vote = None
+            for v in votes_data[name]:
+                if str(v.get('candidate_id')) == selected_c_id:
+                    apostle_vote = v
+                    break
+
+            if not apostle_vote:
+                continue
+
+            imp = apostle_vote.get('impact_score', 0)
+            feas = apostle_vote.get('feasibility_score', 0)
+            al = apostle_vote.get('alignment_score', 0)
+            safe = apostle_vote.get('safety_multiplier', 1.0)
+            cost = apostle_vote.get('cost_multiplier', 1.0)
+            veto = apostle_vote.get('veto', False)
+            reason = apostle_vote.get('reason', '').replace('"', '&quot;')
+
+            imp_class = 'val-emerald' if imp >= 4 else ('val-amber' if imp == 3 else 'val-rose')
+            imp_html = f'<span class="val-pill {imp_class}">{imp}</span>'
+
+            feas_class = 'val-emerald' if feas >= 4 else ('val-amber' if feas == 3 else 'val-rose')
+            feas_html = f'<span class="val-pill {feas_class}">{feas}</span>'
+
+            al_class = 'val-emerald' if al >= 4 else ('val-amber' if al == 3 else 'val-rose')
+            al_html = f'<span class="val-pill {al_class}">{al}</span>'
+
+            safe_class = 'val-emerald' if safe > 1.0 else ('val-rose' if safe < 1.0 else 'val-neutral')
+            safe_html = f'<span class="val-pill {safe_class}">{safe:.2f}</span>'
+
+            cost_class = 'val-emerald' if cost < 1.0 else ('val-rose' if cost > 1.0 else 'val-neutral')
+            cost_html = f'<span class="val-pill {cost_class}">{cost:.2f}</span>'
+
+            veto_html = '<span class="status-badge status-vetoed">VETO</span>' if veto else '<span style="color: #34d399; font-weight:700;">No</span>'
+            row_style = 'class="vetoed-row"' if veto else ''
+            reason_html = f'<td class="reason-cell" title="{reason}">💬</td>'
+
+            apostle_rows.append(f"""
+            <tr {row_style}>
+                <td style="font-weight: 700; color: #c7d2fe;">{name}</td>
+                <td style="text-align: center;">{imp_html}</td>
+                <td style="text-align: center;">{feas_html}</td>
+                <td style="text-align: center;">{al_html}</td>
+                <td style="text-align: center;">{safe_html}</td>
+                <td style="text-align: center;">{cost_html}</td>
+                <td style="text-align: center;">{veto_html}</td>
+                {reason_html}
+            </tr>
+            """)
+
+        detailed_table_html = f"""
+        <div class="decision-table-container">
+            <table class="decision-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">Apostle Name</th>
+                        <th style="width: 10%; text-align: center;">Impact ⚡</th>
+                        <th style="width: 10%; text-align: center;">Feasibility 🛠️</th>
+                        <th style="width: 10%; text-align: center;">Alignment 🎯</th>
+                        <th style="width: 10%; text-align: center;">Safety Mult. 🛡️</th>
+                        <th style="width: 10%; text-align: center;">Cost Mult. 💎</th>
+                        <th style="width: 10%; text-align: center;">Veto</th>
+                        <th style="width: 15%; text-align: center;">Apostle Reason (Hover)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {"".join(apostle_rows)}
+                </tbody>
+            </table>
+        </div>
+        """
+        st.markdown(detailed_table_html, unsafe_allow_html=True)
+
+
 # ─── Data ───────────────────────────────────────────────────────────────────
 basenames = get_organism_basenames(WORKSPACE)
 all_edges = build_edges(basenames)
@@ -638,7 +1017,7 @@ if inspect:
             lines = log.splitlines()
             if lines and lines[0].strip().startswith("# Decision Log:"):
                 log = "\n".join(lines[1:]).strip()
-            st.markdown(log)
+            render_decision_log_with_tables(log, inspect)
         else:
             st.info("No decision log.")
     else:
@@ -656,7 +1035,7 @@ if inspect:
                 lines = log.splitlines()
                 if lines and lines[0].strip().startswith("# Decision Log:"):
                     log = "\n".join(lines[1:]).strip()
-                st.markdown(log)
+                render_decision_log_with_tables(log, inspect)
             else:
                 st.info("No decision log.")
 
