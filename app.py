@@ -393,7 +393,8 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
     }
     </style>
     """
-    st.markdown(styles, unsafe_allow_html=True)
+    clean_styles = "\n".join(line.strip() for line in styles.split("\n") if line.strip())
+    st.markdown(clean_styles, unsafe_allow_html=True)
 
     st.markdown('### 📊 Candidates Leaderboard')
 
@@ -476,7 +477,8 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
         </table>
     </div>
     """
-    st.markdown(leaderboard_html, unsafe_allow_html=True)
+    clean_leaderboard_html = "\n".join(line.strip() for line in leaderboard_html.split("\n") if line.strip())
+    st.markdown(clean_leaderboard_html, unsafe_allow_html=True)
 
     st.markdown('### 🕵️ Detailed Apostle Votes')
 
@@ -562,7 +564,8 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
             </table>
         </div>
         """
-        st.markdown(detailed_table_html, unsafe_allow_html=True)
+        clean_detailed_table_html = "\n".join(line.strip() for line in detailed_table_html.split("\n") if line.strip())
+        st.markdown(clean_detailed_table_html, unsafe_allow_html=True)
 
 
 # ─── Data ───────────────────────────────────────────────────────────────────
