@@ -301,7 +301,7 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
         background: rgba(13, 17, 23, 0.7);
         border: 1px solid rgba(99, 102, 241, 0.15);
         border-radius: 8px;
-        overflow: hidden;
+        overflow: visible;
         margin-bottom: 25px;
         font-size: 0.85em;
     }
@@ -391,6 +391,49 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
         font-size: 1.1em;
         text-align: center;
     }
+    /* Premium CSS Tooltip */
+    .custom-tooltip {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+    }
+    .custom-tooltip .tooltip-text {
+        visibility: hidden;
+        width: 280px;
+        background-color: #1e1e30;
+        color: #e2e2f0;
+        text-align: left;
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        border-radius: 6px;
+        padding: 8px 12px;
+        position: absolute;
+        z-index: 1000;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.15s ease-in-out;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+        font-size: 1.05em;
+        font-weight: normal;
+        white-space: normal;
+        pointer-events: none;
+        line-height: 1.4;
+    }
+    .custom-tooltip .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #1e1e30 transparent transparent transparent;
+    }
+    .custom-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
     </style>
     """
     clean_styles = "\n".join(line.strip() for line in styles.split("\n") if line.strip())
@@ -415,7 +458,8 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
             v_reasons_str = " | ".join([f"{v['apostle']}: {v['reason']}" for v in veto_details.get(c_id, [])])
             if not v_reasons_str:
                 v_reasons_str = "Vetoed by Apostle"
-            status_html = f'<span class="status-badge status-vetoed veto-reason-tooltip" title="{v_reasons_str}">Vetoed</span>'
+            v_reasons_str_escaped = v_reasons_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#x27;')
+            status_html = f'<span class="status-badge status-vetoed custom-tooltip">Vetoed<span class="tooltip-text">{v_reasons_str_escaped}</span></span>'
             row_class = 'class="vetoed-row"'
         else:
             status_html = '<span class="status-badge status-evaluated">Evaluated</span>'
@@ -509,7 +553,8 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
             safe = apostle_vote.get('safety_multiplier', 1.0)
             cost = apostle_vote.get('cost_multiplier', 1.0)
             veto = apostle_vote.get('veto', False)
-            reason = apostle_vote.get('reason', '').replace('"', '&quot;')
+            raw_reason = apostle_vote.get('reason', '')
+            reason = raw_reason.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#x27;')
 
             imp_class = 'val-emerald' if imp >= 4 else ('val-amber' if imp == 3 else 'val-rose')
             imp_html = f'<span class="val-pill {imp_class}">{imp}</span>'
@@ -528,7 +573,7 @@ def render_decision_log_with_tables(log_content: str, inspect_id: str):
 
             veto_html = '<span class="status-badge status-vetoed">VETO</span>' if veto else '<span style="color: #34d399; font-weight:700;">No</span>'
             row_style = 'class="vetoed-row"' if veto else ''
-            reason_html = f'<td class="reason-cell" title="{reason}">💬</td>'
+            reason_html = f'<td class="reason-cell"><span class="custom-tooltip">💬<span class="tooltip-text">{reason}</span></span></td>'
 
             apostle_rows.append(f"""
             <tr {row_style}>
