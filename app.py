@@ -191,16 +191,19 @@ st.iframe("""
 def render_decision_log_text(log_content: str):
     import re
 
-    # Try to find the Raw Votes Data JSON block
-    pattern = r'## Raw Votes Data\s*```json\s*(.*?)\s*```'
-    match = re.search(pattern, log_content, re.DOTALL)
+    # Split at '## Voting Results' section — everything from there belongs in the votes tab
+    vote_section_match = re.search(r'^## Voting Results', log_content, re.MULTILINE)
+    if vote_section_match:
+        markdown_before = log_content[:vote_section_match.start()].strip()
+    else:
+        # Fallback: try splitting at Raw Votes Data JSON block
+        pattern = r'## Raw Votes Data\s*```json\s*(.*?)\s*```'
+        match = re.search(pattern, log_content, re.DOTALL)
+        if match:
+            markdown_before = log_content[:match.start()].strip()
+        else:
+            markdown_before = log_content
 
-    if not match:
-        st.markdown(log_content)
-        return
-
-    # Extract and render markdown before it
-    markdown_before = log_content[:match.start()].strip()
     st.markdown(markdown_before)
 
 
@@ -208,13 +211,25 @@ def render_decision_log_votes_table(log_content: str, inspect_id: str):
     import re
     import json
 
-    # Try to find the Raw Votes Data JSON block
-    pattern = r'## Raw Votes Data\s*```json\s*(.*?)\s*```'
-    match = re.search(pattern, log_content, re.DOTALL)
+    # Render the text-based Voting Results + Children Spawned sections first
+    vote_section_match = re.search(r'^## Voting Results', log_content, re.MULTILINE)
+    raw_json_pattern = r'## Raw Votes Data\s*```json\s*(.*?)\s*```'
+    raw_json_match = re.search(raw_json_pattern, log_content, re.DOTALL)
 
-    if not match:
-        st.info("No voting data available for this seed node.")
+    if vote_section_match:
+        # Extract text between '## Voting Results' and '## Raw Votes Data'
+        end_pos = raw_json_match.start() if raw_json_match else len(log_content)
+        vote_text = log_content[vote_section_match.start():end_pos].strip()
+        if vote_text:
+            st.markdown(vote_text)
+            st.markdown("---")
+
+    if not raw_json_match:
+        if not vote_section_match:
+            st.info("No voting data available for this seed node.")
         return
+
+    match = raw_json_match
 
     # Extract JSON content
     raw_json_str = match.group(1).strip()
@@ -1073,6 +1088,130 @@ if inspect != inspect_id:
     st.query_params["type"] = "node"
     st.rerun()
 
+# ─── Helper: Render Evolutionary Diversity Analyzer ─────────────────────────
+def render_diversity_analyzer():
+    import difflib
+    import subprocess
+
+    st.caption("Compare 2 to 5 organisms to measure code implementation and execution output similarity. Diagnoses convergence vs divergence in your evolutionary lineage.")
+
+    selected_compare = st.multiselect(
+        "Select Organisms for Similarity Analysis",
+        basenames,
+        format_func=lambda x: f"{x}.py" + (f"  — {descriptions[x]}" if x in descriptions else ""),
+        max_selections=5,
+        key="compare_select"
+    )
+
+    if len(selected_compare) >= 2:
+        if st.button("✨ Analyze Evolutionary Diversity", use_container_width=True):
+            # 1. Fetch code and execution output
+            code_data = {}
+            output_data = {}
+
+            progress_ph = st.progress(0)
+            status_text_ph = st.empty()
+
+            total_steps = len(selected_compare)
+            for idx, base in enumerate(selected_compare):
+                status_text_ph.text(f"Running and analyzing {base}.py...")
+
+                # Load Code
+                code = load_code(WORKSPACE, base) or ""
+                code_data[base] = code
+
+                # Run program securely
+                filepath = os.path.join(WORKSPACE, f"{base}.py")
+                output = ""
+                if os.path.exists(filepath):
+                    try:
+                        res = subprocess.run(
+                            [sys.executable, filepath],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                            cwd=WORKSPACE
+                        )
+                        if res.returncode == 0:
+                            output = res.stdout.strip() if res.stdout.strip() else "(Successful execution with no output)"
+                        else:
+                            output = f"Error (code {res.returncode}):\n{res.stderr.strip()}"
+                    except subprocess.TimeoutExpired:
+                        output = "Error: Timeout (5s limit)"
+                    except Exception as e:
+                        output = f"Error running code: {str(e)}"
+                else:
+                    output = "Error: File not found."
+
+                output_data[base] = output
+                progress_ph.progress(int((idx + 1) / total_steps * 100))
+
+            status_text_ph.empty()
+            progress_ph.empty()
+
+            # 2. Pairwise similarity calculation
+            code_sims = []
+            out_sims = []
+
+            # Build matrix tables
+            matrix_code = {b1: {b2: "-" for b2 in selected_compare} for b1 in selected_compare}
+            matrix_output = {b1: {b2: "-" for b2 in selected_compare} for b1 in selected_compare}
+
+            for i, b1 in enumerate(selected_compare):
+                matrix_code[b1][b1] = "100.0%"
+                matrix_output[b1][b1] = "100.0%"
+                for j in range(i + 1, len(selected_compare)):
+                    b2 = selected_compare[j]
+
+                    # Code similarity
+                    c_sim = difflib.SequenceMatcher(None, code_data[b1], code_data[b2]).ratio()
+                    code_sims.append(c_sim)
+                    matrix_code[b1][b2] = f"{c_sim * 100:.1f}%"
+                    matrix_code[b2][b1] = f"{c_sim * 100:.1f}%"
+
+                    # Output similarity
+                    o_sim = difflib.SequenceMatcher(None, output_data[b1], output_data[b2]).ratio()
+                    out_sims.append(o_sim)
+                    matrix_output[b1][b2] = f"{o_sim * 100:.1f}%"
+                    matrix_output[b2][b1] = f"{o_sim * 100:.1f}%"
+
+            avg_code = sum(code_sims) / len(code_sims) if code_sims else 1.0
+            avg_output = sum(out_sims) / len(out_sims) if out_sims else 1.0
+
+            # Render Metrics
+            m1, m2 = st.columns(2)
+            with m1:
+                st.metric("Average Code Similarity", f"{avg_code * 100:.1f}%")
+            with m2:
+                st.metric("Average Output Similarity", f"{avg_output * 100:.1f}%")
+
+            # Render dynamic diagnoses
+            st.markdown("### 📊 Diversity Verdict")
+            if avg_code >= 0.8 and avg_output >= 0.8:
+                st.success("🎯 **Evolutionary Convergence (수렴)**: The selected programs are highly similar in both structural implementation and execution behavior. The lineages are converging onto a unified standard design.")
+            elif avg_output >= 0.8 and avg_code < 0.6:
+                st.info("💡 **Functional Convergence with Diverse Code (기능 수렴 / 구조 분화)**: The programs solve the task differently in code structure, but yield highly identical execution outputs. This means the evolutionary pipeline is successfully exploring diverse mechanisms to achieve the same goal.")
+            elif avg_code < 0.5 and avg_output < 0.5:
+                st.warning("🌿 **Evolutionary Divergence (발산)**: The programs are highly diverse in both implementation and runtime output. The evolutionary engine is actively branching out to explore vastly different computational strategies.")
+            else:
+                st.info("⚖️ **Balanced Evolutionary Exploration (균형 잡힌 탐색)**: Moderate level of variance. The organisms show healthy behavioral and structural adjustments as they evolve.")
+
+            # Detail Matrix Tables in Expanders
+            tab_code, tab_out = st.tabs(["💻 Detailed Code Similarity Matrix", "🖥️ Detailed Output Similarity Matrix"])
+            with tab_code:
+                st.dataframe(matrix_code, use_container_width=True)
+            with tab_out:
+                st.dataframe(matrix_output, use_container_width=True)
+
+            # Show Output Content comparison
+            with st.expander("🔍 Compare Captured Execution Outputs", expanded=False):
+                for base in selected_compare:
+                    st.subheader(f"{base}.py Output:")
+                    st.code(output_data[base], language="text")
+    else:
+        st.info("Please select at least 2 organisms to begin similarity and diversity analysis.")
+
+
 if inspect:
     if inspect_type == "edge":
         log = load_decision_log(WORKSPACE, inspect)
@@ -1081,12 +1220,14 @@ if inspect:
             lines = log.splitlines()
             if lines and lines[0].strip().startswith("# Decision Log:"):
                 log = "\n".join(lines[1:]).strip()
-            
-            t_log, t_vote = st.tabs(["📋 Decision Log", "🗳️ Voting Results"])
+
+            t_log, t_vote, t_div = st.tabs(["📋 Decision Log", "🗳️ Voting Results", "🧬 Diversity"])
             with t_log:
                 render_decision_log_text(log)
             with t_vote:
                 render_decision_log_votes_table(log, inspect)
+            with t_div:
+                render_diversity_analyzer()
         else:
             st.info("No decision log.")
     else:
@@ -1097,7 +1238,7 @@ if inspect:
             if lines and lines[0].strip().startswith("# Decision Log:"):
                 log = "\n".join(lines[1:]).strip()
 
-        t_code, t_log, t_vote = st.tabs(["💻 Code", "📋 Decision Log", "🗳️ Voting Results"])
+        t_code, t_log, t_vote, t_div = st.tabs(["💻 Code", "📋 Decision Log", "🗳️ Voting Results", "🧬 Diversity"])
         with t_code:
             code = load_code(WORKSPACE, inspect)
             if code:
@@ -1114,130 +1255,13 @@ if inspect:
                 render_decision_log_votes_table(log, inspect)
             else:
                 st.info("No voting data available for this seed node.")
-
-# ─── Evolutionary Diversity Analyzer ─────────────────────────────────────────
-st.markdown("---")
-st.markdown('<p class="section-label">🧬 Evolutionary Diversity Analyzer</p>', unsafe_allow_html=True)
-st.caption("Compare 2 to 5 organisms to measure code implementation and execution output similarity. Diagnoses convergence vs divergence in your evolutionary lineage.")
-
-selected_compare = st.multiselect(
-    "Select Organisms for Similarity Analysis",
-    basenames,
-    format_func=lambda x: f"{x}.py" + (f"  — {descriptions[x]}" if x in descriptions else ""),
-    max_selections=5,
-    key="compare_select"
-)
-
-if len(selected_compare) >= 2:
-    if st.button("✨ Analyze Evolutionary Diversity", use_container_width=True):
-        import difflib
-        import subprocess
-        
-        # 1. Fetch code and execution output
-        code_data = {}
-        output_data = {}
-        
-        progress_ph = st.progress(0)
-        status_text_ph = st.empty()
-        
-        total_steps = len(selected_compare)
-        for idx, base in enumerate(selected_compare):
-            status_text_ph.text(f"Running and analyzing {base}.py...")
-            
-            # Load Code
-            code = load_code(WORKSPACE, base) or ""
-            code_data[base] = code
-            
-            # Run program securely
-            filepath = os.path.join(WORKSPACE, f"{base}.py")
-            output = ""
-            if os.path.exists(filepath):
-                try:
-                    res = subprocess.run(
-                        [sys.executable, filepath],
-                        capture_output=True,
-                        text=True,
-                        timeout=5,
-                        cwd=WORKSPACE
-                    )
-                    if res.returncode == 0:
-                        output = res.stdout.strip() if res.stdout.strip() else "(Successful execution with no output)"
-                    else:
-                        output = f"Error (code {res.returncode}):\n{res.stderr.strip()}"
-                except subprocess.TimeoutExpired:
-                    output = "Error: Timeout (5s limit)"
-                except Exception as e:
-                    output = f"Error running code: {str(e)}"
-            else:
-                output = "Error: File not found."
-            
-            output_data[base] = output
-            progress_ph.progress(int((idx + 1) / total_steps * 100))
-        
-        status_text_ph.empty()
-        progress_ph.empty()
-        
-        # 2. Pairwise similarity calculation
-        code_sims = []
-        out_sims = []
-        
-        # Build matrix tables
-        matrix_code = {b1: {b2: "-" for b2 in selected_compare} for b1 in selected_compare}
-        matrix_output = {b1: {b2: "-" for b2 in selected_compare} for b1 in selected_compare}
-        
-        for i, b1 in enumerate(selected_compare):
-            matrix_code[b1][b1] = "100.0%"
-            matrix_output[b1][b1] = "100.0%"
-            for j in range(i + 1, len(selected_compare)):
-                b2 = selected_compare[j]
-                
-                # Code similarity
-                c_sim = difflib.SequenceMatcher(None, code_data[b1], code_data[b2]).ratio()
-                code_sims.append(c_sim)
-                matrix_code[b1][b2] = f"{c_sim * 100:.1f}%"
-                matrix_code[b2][b1] = f"{c_sim * 100:.1f}%"
-                
-                # Output similarity
-                o_sim = difflib.SequenceMatcher(None, output_data[b1], output_data[b2]).ratio()
-                out_sims.append(o_sim)
-                matrix_output[b1][b2] = f"{o_sim * 100:.1f}%"
-                matrix_output[b2][b1] = f"{o_sim * 100:.1f}%"
-        
-        avg_code = sum(code_sims) / len(code_sims) if code_sims else 1.0
-        avg_output = sum(out_sims) / len(out_sims) if out_sims else 1.0
-        
-        # Render Metrics
-        m1, m2 = st.columns(2)
-        with m1:
-            st.metric("Average Code Similarity", f"{avg_code * 100:.1f}%")
-        with m2:
-            st.metric("Average Output Similarity", f"{avg_output * 100:.1f}%")
-            
-        # Render dynamic diagnoses
-        st.markdown("### 📊 Diversity Verdict")
-        if avg_code >= 0.8 and avg_output >= 0.8:
-            st.success("🎯 **Evolutionary Convergence (수렴)**: The selected programs are highly similar in both structural implementation and execution behavior. The lineages are converging onto a unified standard design.")
-        elif avg_output >= 0.8 and avg_code < 0.6:
-            st.info("💡 **Functional Convergence with Diverse Code (기능 수렴 / 구조 분화)**: The programs solve the task differently in code structure, but yield highly identical execution outputs. This means the evolutionary pipeline is successfully exploring diverse mechanisms to achieve the same goal.")
-        elif avg_code < 0.5 and avg_output < 0.5:
-            st.warning("🌿 **Evolutionary Divergence (발산)**: The programs are highly diverse in both implementation and runtime output. The evolutionary engine is actively branching out to explore vastly different computational strategies.")
-        else:
-            st.info("⚖️ **Balanced Evolutionary Exploration (균형 잡힌 탐색)**: Moderate level of variance. The organisms show healthy behavioral and structural adjustments as they evolve.")
-            
-        # Detail Matrix Tables in Expanders
-        tab_code, tab_out = st.tabs(["💻 Detailed Code Similarity Matrix", "🖥️ Detailed Output Similarity Matrix"])
-        with tab_code:
-            st.dataframe(matrix_code, use_container_width=True)
-        with tab_out:
-            st.dataframe(matrix_output, use_container_width=True)
-            
-        # Show Output Content comparison
-        with st.expander("🔍 Compare Captured Execution Outputs", expanded=False):
-            for base in selected_compare:
-                st.subheader(f"{base}.py Output:")
-                st.code(output_data[base], language="text")
+        with t_div:
+            render_diversity_analyzer()
 else:
-    st.info("Please select at least 2 organisms to begin similarity and diversity analysis.")
+    # No node/edge selected — show Diversity Analyzer as standalone
+    st.markdown("---")
+    st.markdown('<p class="section-label">🧬 Evolutionary Diversity Analyzer</p>', unsafe_allow_html=True)
+    render_diversity_analyzer()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(
