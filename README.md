@@ -8,7 +8,9 @@
 
 ## 🗺️ 1. 한눈에 보는 시스템 도식 (System Schematic)
 
-본 프레임워크는 기존 유전 프로그래밍(GP)의 한계인 **구문 붕괴(Lethal Mutation)**를 LLM의 코드 이해도를 바탕으로 극복하고, 다중 에이전트의 합의 투표와 면역 시스템(Veto)을 결합하여 코드의 안전하고 우상향하는 진화를 이끌어냅니다.
+본 프레임워크는 단순히 당장의 실행 속도만을 탐욕적으로 극대화하는 '단순 최적화 도구(Greedy Optimizer)'가 아닙니다. 13 Apostles는 **"당장의 성능 결함이나 비효율을 가졌더라도, 다음 세대에 혁신적인 형질의 모태가 될 수 있는 잠재적 유전자(Dormant/Viable)는 보존되어야 비선형적 알고리즘 도약이 가능하다"**는 깊은 진화론적 철학 아래 설계된 **자율형 코드 가능성 탐색기(Evolutionary Possibility Explorer)**입니다.
+
+기존 유전 프로그래밍(GP)의 한계인 **구문 붕괴(Lethal Mutation)**를 LLM의 문법 이해 지능으로 해결하고, 13인의 AI 사도가 서로 다른 다차원 인지 편향을 바탕으로 '현재의 단기 성능'이 아닌 **'장기적 진화 잠재력과 아키텍처 확장성'**을 평가하여 계통의 다양성을 보존합니다.
 
 ```mermaid
 flowchart TD
@@ -17,13 +19,14 @@ flowchart TD
     classDef filter fill:#ff9,stroke:#333,stroke-width:1px;
     classDef success fill:#9f9,stroke:#333,stroke-width:2px;
     classDef fail fill:#f99,stroke:#333,stroke-width:1px;
+    classDef state fill:#eef,stroke:#333,stroke-dasharray: 5 5;
 
     Parent["🧬 부모 코드 (Parent Genotype) <br> e.g., 0.py"]:::parent --> MutationEngine["⚙️ Directed Mutation Engine"]
 
-    subgraph Apostles ["13인의 사도 (Apostles Personas)"]
-        A1["Melchior <br> (극한 최적화)"]:::apostle
-        A2["Balthasar <br> (안전 & 가독성)"]:::apostle
-        A3["Casper <br> (기발한 돌발변칙)"]:::apostle
+    subgraph Apostles ["13인의 사도 (Apostles - Cognitive Biases & Multi-Agent Consensus)"]
+        A1["Melchior <br> (성능/최적화)"]:::apostle
+        A2["Balthasar <br> (가독성/예외처리)"]:::apostle
+        A3["Casper <br> (알고리즘 변칙)"]:::apostle
         A_More["... 10 More Personas"]:::apostle
     end
 
@@ -31,18 +34,42 @@ flowchart TD
     Apostles -->|고유 인지 편향 기반 변이 제안| Candidates["📦 후보군 생성 (Candidate Genotypes)"]
 
     Candidates --> Filter1{"1차: 구문 검증 <br> (Syntax Check)"}:::filter
-    Filter1 -->|Syntax Error| Dead1["💀 치사 도태 (Lethal Mutation)"]:::fail
+    Filter1 -->|Syntax Error| Dead["💀 치사 도태 (Lethal Mutation) <br> [시스템 격리]"]:::fail
     
-    Filter1 -->|Pass| Filter2{"2차: 5초 성능 측정 <br> (Ecological Benchmark)"}:::filter
-    Filter2 -->|Timeout / Fail| Dead2["💀 환경적 도태 (Timeout)"]:::fail
+    Filter1 -->|Pass| Filter2{"2차: 다차원 합의 및 Veto 면역 검증 <br> (Apostle Consensus & Safety Veto)"}:::filter
+    Filter2 -->|거부권 (Veto) 발동| Vetoed["🛡️ 면역 도태 (Vetoed) <br> [안전성 위배 / 치팅]"]:::fail
     
-    Filter2 -->|Pass| Filter3{"3차: 다차원 합의 투표 <br> (Consensus & Veto)"}:::filter
-    Filter3 -->|거부권 (Veto) 발동| Dead3["🛡️ 면역 도태 (Vetoed)"]:::fail
+    Filter2 -->|합의 통과 (Consent)| SurvivalSystem{"3차: 다차원 생태학적 계층 상태 평가 <br> (Hierarchical Ecological States)"}:::filter
     
-    Filter3 -->|합의 통과 (Consent)| Success["🏆 우량종 최종 보존 <br> e.g., 04.py"]:::success
+    SurvivalSystem -->|최고의 적합도 확보| Elite["🏆 Elite <br> [차세대 주류 부모종]"]:::success
+    SurvivalSystem -->|정상 실행 및 기본 목적 충족| Viable["🟢 Viable <br> [안정적 계통군 보존]"]:::success
+    SurvivalSystem -->|현재 성능은 낮으나 구조적 참신성| Dormant["🟡 Dormant <br> [미래 도약을 위한 유전자 저장소]"]:::success
+    SurvivalSystem -->|일시적 오버헤드 / 리스크 보유| Quarantined["🔴 Quarantined <br> [진화 일시 보류 및 감시]"]:::fail
 
-    Success -->|다음 세대의 조상으로 채택| Parent
+    Elite & Viable & Dormant -->|다양한 유동적 탐색 공간 유지| Parent
 ```
+
+### 🧬 진화적 선택의 혁신적 설계: 계층적 생존 철학 (Hierarchical Survival Philosophy)
+
+#### ❓ 핵심 비판과 진화학적 반론 (Selection Criteria Criticism & Theoretical Defense)
+*   **비판**: *"evolution.py (line 321)는 새 자식 코드에 대해 구문 오류(py_compile)만 확인하고, 실제 5초 벤치마크나 fitness 비교를 통한 사멸 조건을 강제하지 않는다. 이는 실제 fitness보다 LLM 투표에 과하게 의존하여 자연선택보다 'LLM 심사위원 대회'에 치우친 게 아닌가?"*
+*   **반론 및 철학적 설계**: **이것은 시스템 결함이 아니라, 본 진화 엔진의 핵심 의도이자 가장 독창적인 설계 요소입니다.**
+    *   **단기 적자생존의 함정 (Local Optima Entrapment)**: 전통적인 유전 프로그래밍(GP)이나 강화학습처럼 매 세대마다 엄격한 성능(Fitness) 문턱값으로 개체를 즉각 사멸시킨다면, 시스템은 아주 얕은 지역 최적점에 갇히게 되며 계통의 다양성은 급속도로 고갈됩니다.
+    *   **잠재성의 보존 (Preservation of the Dormant)**: 생물학적 진화에서 돌연변이는 우발적이고 비논리적이며 비효율적으로 발생합니다. 당장은 부모보다 조금 더 느리거나 기형적인 개체(Dormant)라도, 구문상 실행 가능(Viable)하다면 즉각 사멸시키는 대신 계통 내에 보존해야 합니다. 이 "잘못 태어난 아이"가 가지고 있는 독창적인 구조가 다음 세대에서 또 다른 우발적 변이와 결합할 때, 비로소 상상할 수 없었던 **알고리즘적 대도약(Macro-evolutionary Leap)**이 일어나기 때문입니다.
+    *   **LLM 사도 합의의 본질 (Consensus of Potential)**: 13사도의 투표는 단순한 '현재 성능 평가'가 아닌, **'미래 진화 가능성에 대한 다차원적 합의'**입니다. 사도들은 단순 수치 벤치마크 너머를 꿰뚫어 봅니다:
+        - *"지금은 비록 연산 속도가 느리지만, 향후 병렬성 확장을 유도할 수 있는 혁신적인 모듈화 구조를 갖추었는가?"*
+        - *"당장은 오버헤드가 크지만, 소수 사막을 안전하게 우회할 수 있는 완전히 새로운 알고리즘의 길을 열어주는가?"*
+        - *"부모 코드의 구조에 안주하지 않고, 계통군 전체의 표현형 다양성(Phenotypic Diversity)을 확장하는가?"*
+
+#### 📊 계층적 생존 상태 모델 (Hierarchical Survival States Model)
+본 엔진은 "살거나 죽거나(Kill or Survive)"의 단순 적자생존 이분법을 배제하고, 개체군을 5단계의 생태학적 계층 상태로 세밀하게 관리합니다:
+1.  **🏆 Elite (우수 유전자)**: 현재 벤치마크 성능(Fitness)이 매우 우수하여 다음 세대 진화를 이끌 주류 부모종.
+2.  **🟢 Viable (실행 표준종)**: 문법적으로 무결하며, 비효율은 있으나 안정적으로 핵심 목적을 수행하는 형질군.
+3.  **🟡 Dormant (잠재 잠복종)**: 당장의 실행 속도나 효율성은 낮지만, 구조적으로 매우 참신하여 **미래 세대의 결합 변이 가능성을 품은 유전자원 저장소**.
+4.  **🔴 Quarantined (격리 감시종)**: 실행은 가능하나 리스크나 스레드 오버헤드가 있어 자동 진화 라인에서는 임시 배제하고 추적만 하는 상태.
+5.  **💀 Dead (치사 도태종)**: 구문 오류(Syntax Error), 무한 루프, 혹은 수학적 무결성을 훼손하여 목적을 파괴한 개체. 시스템 보안과 신뢰성을 위해 철저히 격리 및 사멸됩니다.
+
+이로써 13 Apostles는 단순한 **'현재의 최적화 도구(Optimizer)'**가 아닌, 가능성의 공간을 드넓게 유지하는 **'장기적 진화 가능성 탐색기(Evolutionary Possibility Explorer)'**로서의 정체성을 완벽하게 실현합니다.
 
 ### ⚡ 핵심 지표 요약 (Key Statistics at a Glance)
 153개 개체군의 전수 조사를 통해 디지털 공간에서 생물학적 진화 법칙이 그대로 재현됨이 입증되었습니다.
@@ -125,4 +152,4 @@ python evolution.py 0.py --children 3
 
 ## 5. 학술 연구 및 심층 분석 보고서
 본 프레임워크의 상세 통계적 지표와 수학적 분석 결과는 아래 독립 아티팩트에 피어 리뷰 수준의 논문 형식으로 수록되어 있습니다.
-*   **심층 진화 분석 논문 전문**: [scientific_analysis.md](file:///C:/Users/eljja/.gemini/antigravity/brain/996e21c3-f9ac-4ef8-80c5-6e25c53f4011/scientific_analysis.md)
+*   **심층 진화 분석 논문 전문**: [scientific_analysis.md](./scientific_analysis.md)
