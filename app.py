@@ -146,7 +146,7 @@ hr { border-color: rgba(99,102,241,0.12) !important; margin: 12px 0 !important; 
 # ─── Parent Window Event Listener Injection ──────────────────────────────────
 # We inject a script into the parent window using a 0-height iframe to bypass
 # Streamlit's st.markdown HTML sanitization of inline event handlers.
-st.components.v1.html("""
+st.iframe("""
 <script>
   const parentWin = window.parent;
   if (!parentWin.hasStreamlitParamListener) {
@@ -440,7 +440,7 @@ cy.on('zoom', function(e) {{
 }});
 </script>
 """
-st.components.v1.html(cy_html, height=graph_h + 10, scrolling=False)
+st.iframe(cy_html, height=graph_h + 10)
 
 # ─── Controls ───────────────────────────────────────────────────────────────
 st.markdown("---")
