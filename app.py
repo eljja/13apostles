@@ -315,22 +315,62 @@ with c6:
     st.markdown("")
     run_btn = st.button(f"▶ Evolve {target_node}.py")
 
+# Initialize evolution state variables in session_state if not present
+if "evo_active" not in st.session_state:
+    st.session_state.evo_active = False
+
 if run_btn:
-    # Ensure 'Select Children' does not exceed the actual 'Children' count
-    actual_select = min(select_children, num_children)
-    
-    queue = [f"{target_node}.py"]
+    # Initialize the state machine for multi-generation evolution
+    st.session_state.evo_active = True
+    st.session_state.evo_queue = [f"{target_node}.py"]
+    st.session_state.evo_next_queue = []
+    st.session_state.evo_generation = 0
+    st.session_state.evo_total_generations = generations
+    st.session_state.evo_num_children = num_children
+    st.session_state.evo_select_children = select_children
+    st.session_state.evo_test_mode = test_mode
     st.session_state.latest_log = []
     st.session_state.latest_status = []
-    status_ph = st.empty()
+    st.rerun()
+
+# ─── Gradual State Machine Evolution Executor ────────────────────────────────
+if st.session_state.evo_active:
+    queue = st.session_state.evo_queue
+    next_queue = st.session_state.evo_next_queue
+    gen = st.session_state.evo_generation
+    total_gens = st.session_state.evo_total_generations
+    num_children = st.session_state.evo_num_children
+    select_children = st.session_state.evo_select_children
+    actual_select = min(select_children, num_children)
+    test_mode = st.session_state.evo_test_mode
+
+    # If the queue is empty, transition generation or terminate
+    if not queue:
+        next_gen = gen + 1
+        if next_gen < total_gens and next_queue:
+            st.session_state.evo_queue = next_queue
+            st.session_state.evo_next_queue = []
+            st.session_state.evo_generation = next_gen
+            st.rerun()
+        else:
+            st.session_state.evo_active = False
+            # Automatically sync newly evolved files to GitHub main branch upon full completion
+            auto_git_push()
+            st.rerun()
+
+    # Process exactly ONE node from the queue per rerun to allow instant UI refresh
+    current = queue[0]
+    current_base = current[:-3] if current.endswith(".py") else current
+    
     st.markdown('<p class="section-label">🏃 Live Execution Log</p>', unsafe_allow_html=True)
+    status_ph = st.empty()
     live_log_ph = st.empty()
     
     class LiveLogBox(io.StringIO):
         def __init__(self, ph):
             super().__init__()
             self.ph = ph
-            self.lines = []
+            self.lines = list(st.session_state.latest_log)
         def write(self, s):
             super().write(s)
             if s.strip():
@@ -340,62 +380,63 @@ if run_btn:
                         self.lines.append(f"{now_str} {line.strip()}")
                 self.ph.code("\n".join(self.lines[-3:]), language="text")
 
-    buf = None
-    for i in range(generations):
-        next_queue = []
-        for current in queue:
-            current_base = current[:-3] if current.endswith(".py") else current
-            # Check existing direct children in the tree
-            existing_children = [c for p, c in all_edges if p == current_base]
-            
-            if len(existing_children) >= actual_select:
-                selected_existing = [f"{c}.py" for c in sorted(existing_children)[:actual_select]]
-                msg = f"♻️ Reused existing {len(selected_existing)} children for {current}: {', '.join(selected_existing)}"
-                status_ph.info(msg)
-                st.session_state.latest_status.append(("success", msg))
-                next_queue.extend(selected_existing)
-                continue
-
-            with st.spinner(f"Generation {i+1}/{generations}: Evolving {current}"):
-                engine = EvolutionEngine(WORKSPACE, current)
-                if test_mode:
-                    engine.apostles = engine.apostles[:3]
-                old_stdout = sys.stdout
-                sys.stdout = buf = LiveLogBox(live_log_ph)
-                children_info, error = [], None
-                try:
-                    children_info = engine.run(num_children=num_children)
-                except Exception as e:
-                    error = str(e)
-                finally:
-                    sys.stdout = old_stdout
-                
-                if error:
-                    msg = f"Error on {current}: {error}"
-                    status_ph.error(msg)
-                    st.session_state.latest_status.append(("error", msg))
-                elif children_info:
-                    selected = children_info[:actual_select]
-                    msg = f"✅ {current} -> {', '.join(c['filename'] for c in selected)}"
-                    status_ph.success(msg)
-                    st.session_state.latest_status.append(("success", msg))
-                    next_queue.extend([c['filename'] for c in selected])
-                else:
-                    msg = f"⚠️ {current}: All dropped."
-                    status_ph.warning(msg)
-                    st.session_state.latest_status.append(("warning", msg))
+    # Check existing direct children for cache reuse
+    existing_children = [c for p, c in all_edges if p == current_base]
+    
+    if len(existing_children) >= actual_select:
+        selected_existing = [f"{c}.py" for c in sorted(existing_children)[:actual_select]]
+        msg = f"♻️ Reused existing {len(selected_existing)} children for {current}: {', '.join(selected_existing)}"
+        status_ph.info(msg)
+        st.session_state.latest_status.append(("success", msg))
         
-        queue = next_queue
-        if not queue:
-            break
+        # Advance state queue instantly
+        st.session_state.evo_queue = queue[1:]
+        st.session_state.evo_next_queue.extend(selected_existing)
+        time.sleep(0.1)
+        st.rerun()
+    else:
+        # Run actual evolution for the current target node
+        with st.spinner(f"Generation {gen+1}/{total_gens}: Evolving {current} ..."):
+            engine = EvolutionEngine(WORKSPACE, current)
+            if test_mode:
+                engine.apostles = engine.apostles[:3]
+                
+            old_stdout = sys.stdout
+            buf = LiveLogBox(live_log_ph)
+            sys.stdout = buf
+            children_info, error = [], None
+            try:
+                children_info = engine.run(num_children=num_children)
+            except Exception as e:
+                error = str(e)
+            finally:
+                sys.stdout = old_stdout
             
-    if buf is not None:
-        st.session_state.latest_log = buf.lines
-    
-    # Automatically sync newly evolved files to GitHub main branch
-    auto_git_push()
-    
-    time.sleep(0.5); st.rerun()
+            # Persist logs
+            st.session_state.latest_log = buf.lines
+            
+            if error:
+                msg = f"Error on {current}: {error}"
+                status_ph.error(msg)
+                st.session_state.latest_status.append(("error", msg))
+            elif children_info:
+                selected = children_info[:actual_select]
+                msg = f"✅ {current} -> {', '.join(c['filename'] for c in selected)}"
+                status_ph.success(msg)
+                st.session_state.latest_status.append(("success", msg))
+                st.session_state.evo_next_queue.extend([c['filename'] for c in selected])
+            else:
+                msg = f"⚠️ {current}: All dropped."
+                status_ph.warning(msg)
+                st.session_state.latest_status.append(("warning", msg))
+            
+            # Advance state queue
+            st.session_state.evo_queue = queue[1:]
+            
+            # Instantly rerun: this rewrites the tree map with the newly created child, 
+            # while keeping the next evolution step running seamlessly on the next cycle!
+            time.sleep(0.1)
+            st.rerun()
 
 # ─── Persisted Log Display ──────────────────────────────────────────────────
 if "latest_status" in st.session_state and st.session_state.latest_status:
