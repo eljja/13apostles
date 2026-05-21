@@ -313,25 +313,32 @@ with c5:
     test_mode = st.checkbox("⚡ Test (3)", value=False)
 with c6:
     st.markdown("")
-    run_btn = st.button(f"▶ Evolve {target_node}.py")
+    with st.popover(f"▶ Evolve {target_node}.py", use_container_width=True):
+        st.markdown("**🔒 Authorization Required**")
+        st.caption("Please enter the system password to execute Gemini API evolution.")
+        password = st.text_input("Enter Password", type="password", key="evo_password_input")
+        run_btn = st.button("Confirm Speciation", type="primary", use_container_width=True)
 
 # Initialize evolution state variables in session_state if not present
 if "evo_active" not in st.session_state:
     st.session_state.evo_active = False
 
 if run_btn:
-    # Initialize the state machine for multi-generation evolution
-    st.session_state.evo_active = True
-    st.session_state.evo_queue = [f"{target_node}.py"]
-    st.session_state.evo_next_queue = []
-    st.session_state.evo_generation = 0
-    st.session_state.evo_total_generations = generations
-    st.session_state.evo_num_children = num_children
-    st.session_state.evo_select_children = select_children
-    st.session_state.evo_test_mode = test_mode
-    st.session_state.latest_log = []
-    st.session_state.latest_status = []
-    st.rerun()
+    if password == "pemspems1!":
+        # Initialize the state machine for multi-generation evolution
+        st.session_state.evo_active = True
+        st.session_state.evo_queue = [f"{target_node}.py"]
+        st.session_state.evo_next_queue = []
+        st.session_state.evo_generation = 0
+        st.session_state.evo_total_generations = generations
+        st.session_state.evo_num_children = num_children
+        st.session_state.evo_select_children = select_children
+        st.session_state.evo_test_mode = test_mode
+        st.session_state.latest_log = []
+        st.session_state.latest_status = []
+        st.rerun()
+    else:
+        st.error("🔒 Incorrect password! Speciation blocked.")
 
 # ─── Gradual State Machine Evolution Executor ────────────────────────────────
 if st.session_state.evo_active:
