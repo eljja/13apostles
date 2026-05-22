@@ -909,7 +909,7 @@ st.iframe(cy_html, height=graph_h + 10)
 
 # ─── Controls ───────────────────────────────────────────────────────────────
 st.markdown("---")
-c1, c2, c3, c4, c5, c6 = st.columns([3, 2, 2, 2, 2, 3])
+c1, c2, c3, c4, c5, c6 = st.columns([2.5, 1.5, 1.5, 1.5, 1.5, 4.5])
 with c1:
     target_node = st.selectbox("Evolve from", basenames, format_func=lambda x: f"{x}.py", index=idx)
     if target_node != inspect_id:
@@ -926,7 +926,7 @@ with c5:
     test_mode = st.checkbox("⚡ Test (3)", value=False)
 with c6:
     st.markdown("")
-    sub_col1, sub_col2 = st.columns(2)
+    sub_col1, sub_col2 = st.columns([3.5, 1])
     with sub_col1:
         with st.popover(f"▶ Evolve {target_node}.py", use_container_width=True):
             st.markdown("**🔒 Authorization Required**")
