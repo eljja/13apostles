@@ -926,15 +926,29 @@ with c5:
     test_mode = st.checkbox("⚡ Test (3)", value=False)
 with c6:
     st.markdown("")
-    with st.popover(f"▶ Evolve {target_node}.py", use_container_width=True):
-        st.markdown("**🔒 Authorization Required**")
-        st.caption("Please enter the system password to execute Gemini API evolution.")
-        password = st.text_input("Enter Password", type="password", key="evo_password_input")
-        run_btn = st.button("Confirm Speciation", type="primary", use_container_width=True)
+    sub_col1, sub_col2 = st.columns(2)
+    with sub_col1:
+        with st.popover(f"▶ Evolve {target_node}.py", use_container_width=True):
+            st.markdown("**🔒 Authorization Required**")
+            st.caption("Please enter the system password to execute Gemini API evolution.")
+            password = st.text_input("Enter Password", type="password", key="evo_password_input")
+            run_btn = st.button("Confirm Speciation", type="primary", use_container_width=True)
+    with sub_col2:
+        stop_btn = st.button("🛑 Stop", type="secondary", use_container_width=True, disabled=not st.session_state.get("evo_active", False))
 
 # Initialize evolution state variables in session_state if not present
 if "evo_active" not in st.session_state:
     st.session_state.evo_active = False
+
+if "latest_status" not in st.session_state:
+    st.session_state.latest_status = []
+
+if stop_btn:
+    st.session_state.evo_active = False
+    st.session_state.evo_queue = []
+    st.session_state.evo_next_queue = []
+    st.session_state.latest_status.append(("warning", "🛑 Evolution sequence was stopped manually by the user."))
+    st.rerun()
 
 if run_btn:
     if password == "pemspems1!":
