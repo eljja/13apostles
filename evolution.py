@@ -4,8 +4,28 @@ import json
 import re
 import subprocess
 import py_compile
+import logging
+import time
 from llm_client import LLMClient
 from tree_parser import get_organism_basenames, find_root_seeds
+
+# ─── Configuration Constants ────────────────────────────────────────────────
+MAX_CANDIDATES = 20          # Maximum number of candidate proposals per generation
+DEFAULT_NUM_CHILDREN = 1     # Default number of children to spawn
+MAX_CHILDREN = 5             # Maximum number of children per evolution cycle
+JSON_PARSE_MAX_RETRIES = 2   # Retries for JSON parsing from LLM voting responses
+JSON_RETRY_DELAY = 1.0       # Base delay (seconds) between JSON parse retries
+BASE20_CHARS = "0123456789abcdefghij"  # Character set for candidate IDs
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+logger = logging.getLogger("evolution")
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S"
+    ))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 
 class EvolutionEngine:
@@ -94,11 +114,11 @@ class EvolutionEngine:
         return result.stdout.strip()
 
     def generate_candidates(self, target_code, issue_prompt):
-        print("\n--- Phase 1: Candidate Generation ---")
+        logger.info("--- Phase 1: Candidate Generation ---")
         candidates_raw = []
 
         for apostle in self.apostles:
-            print(f"Asking {apostle['name']} Apostle for a proposal...")
+            logger.info(f"Asking {apostle['name']} Apostle for a proposal...")
             local_obj_section = ""
             if self.local_objective:
                 local_obj_section = f"\nOrganism-Specific Objective:\n{self.local_objective}\n"
@@ -127,15 +147,14 @@ You MUST output ONLY the candidate following this exact markdown format, nothing
                 response, _ = self.llm.generate_content(prompt)
                 candidates_raw.append(response.strip())
             except Exception as e:
-                print(f"Failed to get proposal from {apostle['name']}: {e}")
+                logger.warning(f"Failed to get proposal from {apostle['name']}: {e}")
 
-        print(f"Aggregating {len(candidates_raw)} candidates...")
-        base20_chars = "0123456789abcdefghij"
+        logger.info(f"Aggregating {len(candidates_raw)} candidates...")
         final_candidates = []
         for i, c_text in enumerate(candidates_raw):
-            if i >= 20:
+            if i >= MAX_CANDIDATES:
                 break
-            char_id = base20_chars[i]
+            char_id = BASE20_CHARS[i]
 
             title_match = re.search(r'## Candidate Name\s*\n(.*?)\n', c_text, re.IGNORECASE)
             title = title_match.group(1).strip() if title_match else f"Proposal from Apostle {i+1}"
@@ -149,7 +168,7 @@ You MUST output ONLY the candidate following this exact markdown format, nothing
         return final_candidates
 
     def conduct_voting(self, candidates):
-        print("\n--- Phase 2: Voting & Evaluation ---")
+        logger.info("--- Phase 2: Voting & Evaluation ---")
         votes_data = {}
 
         candidates_text = "".join([
@@ -158,7 +177,7 @@ You MUST output ONLY the candidate following this exact markdown format, nothing
         ])
 
         for apostle in self.apostles:
-            print(f"[{apostle['name']} Apostle] is evaluating and voting...")
+            logger.info(f"[{apostle['name']} Apostle] is evaluating and voting...")
             prompt = f"""
 You are the {apostle['name']} Apostle.
 Your Persona:
@@ -189,18 +208,32 @@ Output ONLY valid JSON in the following format (no markdown, just raw JSON):
   }}
 ]
 """
-            try:
-                response, _ = self.llm.generate_content(prompt)
-                response = response.replace("```json", "").replace("```", "").strip()
-                vote_json = json.loads(response)
-                votes_data[apostle['name']] = vote_json
-            except Exception as e:
-                print(f"Failed to get vote from {apostle['name']}: {e}")
+            parsed = False
+            for retry in range(JSON_PARSE_MAX_RETRIES + 1):
+                try:
+                    response, _ = self.llm.generate_content(prompt)
+                    response = response.replace("```json", "").replace("```", "").strip()
+                    # Try to extract JSON array from response if it contains extra text
+                    json_match = re.search(r'\[.*\]', response, re.DOTALL)
+                    json_str = json_match.group(0) if json_match else response
+                    vote_json = json.loads(json_str)
+                    votes_data[apostle['name']] = vote_json
+                    parsed = True
+                    break
+                except json.JSONDecodeError as e:
+                    logger.warning(f"JSON parse error from {apostle['name']} (attempt {retry+1}/{JSON_PARSE_MAX_RETRIES+1}): {e}")
+                    if retry < JSON_PARSE_MAX_RETRIES:
+                        time.sleep(JSON_RETRY_DELAY * (2 ** retry))
+                except Exception as e:
+                    logger.error(f"Failed to get vote from {apostle['name']}: {e}")
+                    break
+            if not parsed:
+                logger.error(f"All retries exhausted for {apostle['name']}. Skipping this apostle's vote.")
 
         return votes_data
 
     def calculate_results(self, candidates, votes_data):
-        print("\n--- Phase 3: Final Selection ---")
+        logger.info("--- Phase 3: Final Selection ---")
         scores = {c['id']: {"impact": 0, "feasibility": 0, "alignment": 0, "safety": 0, "cost": 0, "veto": False} for c in candidates}
         vetoes = []
 
@@ -237,15 +270,15 @@ Output ONLY valid JSON in the following format (no markdown, just raw JSON):
 
         final_results.sort(key=lambda x: x['final_score'], reverse=True)
 
-        print("\nResults:")
+        logger.info("Results:")
         for r in final_results:
             v_text = "(VETOED)" if r['vetoed'] else f"Score: {r['final_score']:.2f}"
-            print(f"- [{r['id']}] {r['title']}: {v_text}")
+            logger.info(f"  [{r['id']}] {r['title']}: {v_text}")
 
         return final_results, vetoes
 
     def mutate_code(self, target_code, winner, candidates):
-        print(f"\n--- Phase 4: Code Mutation ({winner['id']}) ---")
+        logger.info(f"--- Phase 4: Code Mutation ({winner['id']}) ---")
         winner_content = next(c['content'] for c in candidates if c['id'] == winner['id'])
 
         prompt = f"""
@@ -265,13 +298,13 @@ Instructions:
 2. The output must be a complete, valid, executable Python program.
 3. Return ONLY the raw Python code. Do NOT wrap it in markdown code blocks.
 """
-        print("Requesting code mutation from LLM...")
+        logger.info("Requesting code mutation from LLM...")
         try:
             new_code, _ = self.llm.generate_content(prompt)
             new_code = new_code.replace("```python", "").replace("```", "").strip()
             return new_code
         except Exception as e:
-            print(f"Code generation failed: {e}")
+            logger.error(f"Code generation failed: {e}")
             return None
 
     def _write_decision_log(self, candidates, final_results, vetoes, votes_data, children_info):
@@ -306,12 +339,12 @@ Instructions:
         new_filepath = os.path.join(self.workspace_dir, new_filename)
 
         if os.path.exists(new_filepath):
-            print(f"Child file '{new_filename}' already exists. Skipping LLM generation and reusing existing file.")
+            logger.info(f"Child file '{new_filename}' already exists. Skipping LLM generation and reusing existing file.")
             return {"id": winner['id'], "title": winner['title'], "filename": new_filename, "name": new_name}
 
         new_code = self.mutate_code(target_code, winner, candidates)
         if not new_code:
-            print(f"Mutation failed for {new_filename}. Skipping.")
+            logger.warning(f"Mutation failed for {new_filename}. Skipping.")
             return None
 
         with open(new_filepath, "w", encoding="utf-8") as f:
@@ -319,9 +352,9 @@ Instructions:
 
         try:
             py_compile.compile(new_filepath, doraise=True)
-            print(f"Syntax check passed for {new_filename}.")
+            logger.info(f"Syntax check passed for {new_filename}.")
         except py_compile.PyCompileError as e:
-            print(f"SYNTAX ERROR in {new_filename}. Skipping.\n{e}")
+            logger.error(f"SYNTAX ERROR in {new_filename}. Skipping.\n{e}")
             os.remove(new_filepath)
             return None
 
@@ -331,14 +364,14 @@ Instructions:
         """Run one evolution cycle, spawning up to num_children branches."""
         target_path = os.path.join(self.workspace_dir, self.target_file)
         if not os.path.exists(target_path):
-            print(f"Error: Target file '{self.target_file}' not found.")
+            logger.error(f"Target file '{self.target_file}' not found.")
             return []
 
         with open(target_path, "r", encoding="utf-8") as f:
             target_code = f.read()
 
-        print(f"Target: {self.target_file}")
-        print(f"Current code:\n---\n{target_code}\n---")
+        logger.info(f"Target: {self.target_file}")
+        logger.debug(f"Current code:\n---\n{target_code}\n---")
 
         issue_prompt = self._determine_issue_prompt()
 
@@ -355,9 +388,9 @@ Instructions:
 
         children_info = []
         if not winners:
-            print("ALL CANDIDATES DROPPED. No children spawned.")
+            logger.warning("ALL CANDIDATES DROPPED. No children spawned.")
         else:
-            print(f"\n--- Spawning {len(winners)} children ---")
+            logger.info(f"--- Spawning {len(winners)} children ---")
             for w in winners:
                 child = self._spawn_child(w, candidates, target_code)
                 if child:
@@ -375,10 +408,10 @@ Instructions:
         #     commit_msg = f"Evolve {self.target_basename}: all dropped"
         # subprocess.run(["git", "commit", "-m", commit_msg], cwd=self.workspace_dir)
 
-        print(f"\nEvolution complete!")
-        print(f"  Decision log: {self.target_basename}.md")
+        logger.info(f"Evolution complete!")
+        logger.info(f"  Decision log: {self.target_basename}.md")
         for ci in children_info:
-            print(f"  Child: {ci['filename']} <- [{ci['id']}] {ci['title']}")
+            logger.info(f"  Child: {ci['filename']} <- [{ci['id']}] {ci['title']}")
 
         return children_info
 
@@ -386,21 +419,21 @@ Instructions:
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python evolution.py <target.py> [--children N] [--test]")
-        print("  --children N  Spawn top N children (default: 1, max: 5)")
+        print(f"  --children N  Spawn top N children (default: {DEFAULT_NUM_CHILDREN}, max: {MAX_CHILDREN})")
         print("  --test        Use only 3 apostles for faster testing")
         print("Example: python evolution.py 0.py --children 3")
         sys.exit(1)
 
     target = sys.argv[1]
     test_mode = "--test" in sys.argv
-    num_children = 1
+    num_children = DEFAULT_NUM_CHILDREN
     if "--children" in sys.argv:
         idx = sys.argv.index("--children")
         if idx + 1 < len(sys.argv):
-            num_children = min(int(sys.argv[idx + 1]), 5)
+            num_children = min(int(sys.argv[idx + 1]), MAX_CHILDREN)
 
     engine = EvolutionEngine(os.getcwd(), target)
     if test_mode:
         engine.apostles = engine.apostles[:3]
-        print(f"[TEST MODE] Using only {len(engine.apostles)} apostles: {[a['name'] for a in engine.apostles]}")
+        logger.info(f"[TEST MODE] Using only {len(engine.apostles)} apostles: {[a['name'] for a in engine.apostles]}")
     engine.run(num_children=num_children)

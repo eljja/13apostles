@@ -69,13 +69,33 @@ def build_edges(basenames: list[str]) -> list[tuple[str, str]]:
     """
     Build direct parent→child edges.
     The direct parent of a node is its longest prefix that exists in basenames.
+    Includes cycle detection: edges that would create a cycle are skipped.
     """
     edges = []
+    children_of = {}  # Track children for cycle detection
     for b in basenames:
         prefixes = [other for other in basenames if other != b and b.startswith(other)]
         if prefixes:
             parent = max(prefixes, key=len)  # longest prefix = direct parent
-            edges.append((parent, b))
+            # Cycle guard: ensure parent is not a descendant of b
+            # (should be impossible with prefix naming, but defensive)
+            ancestor = parent
+            cycle_detected = False
+            visited = set()
+            while ancestor in children_of:
+                if ancestor in visited or ancestor == b:
+                    cycle_detected = True
+                    break
+                visited.add(ancestor)
+                # Walk up: find parent of ancestor
+                anc_prefixes = [o for o in basenames if o != ancestor and ancestor.startswith(o)]
+                if anc_prefixes:
+                    ancestor = max(anc_prefixes, key=len)
+                else:
+                    break
+            if not cycle_detected:
+                edges.append((parent, b))
+                children_of.setdefault(parent, []).append(b)
     return edges
 
 

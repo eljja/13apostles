@@ -7,7 +7,7 @@ import os
 API_KEY = ""
 # 1. Try local .env file first
 try:
-    with open(os.path.join(os.path.dirname(__file__), ".env"), "r") as f:
+    with open(os.path.join(os.path.dirname(__file__), ".env"), "r", encoding="utf-8") as f:
         for line in f:
             if line.startswith("GEMINI_API_KEY="):
                 API_KEY = line.strip().split("=", 1)[1].strip('"\'')

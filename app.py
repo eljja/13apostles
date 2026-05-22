@@ -2,7 +2,7 @@
 app.py — 13 Apostles System: Evolution Dashboard
 """
 import streamlit as st
-import os, sys, io, time, json, datetime
+import os, sys, io, time, json, re, datetime, difflib, subprocess, signal
 from evolution import EvolutionEngine
 from tree_parser import (
     get_organism_basenames, build_edges,
@@ -189,7 +189,6 @@ st.iframe("""
 # ─── Custom Decision Log Renderer ───────────────────────────────────────────
 # ─── Custom Decision Log Renderers ──────────────────────────────────────────
 def render_decision_log_text(log_content: str):
-    import re
 
     # Split at '## Voting Results' section — everything from there belongs in the votes tab
     vote_section_match = re.search(r'^## Voting Results', log_content, re.MULTILINE)
@@ -208,8 +207,6 @@ def render_decision_log_text(log_content: str):
 
 
 def render_decision_log_votes_table(log_content: str, inspect_id: str):
-    import re
-    import json
 
     # Render the text-based Voting Results + Children Spawned sections first
     vote_section_match = re.search(r'^## Voting Results', log_content, re.MULTILINE)
@@ -1090,8 +1087,6 @@ if inspect != inspect_id:
 
 # ─── Helper: Render Evolutionary Diversity Analyzer ─────────────────────────
 def render_diversity_analyzer():
-    import difflib
-    import subprocess
 
     st.caption("Compare 2 to 5 organisms to measure code implementation and execution output similarity. Diagnoses convergence vs divergence in your evolutionary lineage.")
 
@@ -1125,19 +1120,40 @@ def render_diversity_analyzer():
                 output = ""
                 if os.path.exists(filepath):
                     try:
-                        res = subprocess.run(
-                            [sys.executable, filepath],
-                            capture_output=True,
-                            text=True,
-                            timeout=5,
-                            cwd=WORKSPACE
-                        )
-                        if res.returncode == 0:
-                            output = res.stdout.strip() if res.stdout.strip() else "(Successful execution with no output)"
+                        # H-1: Use Popen with process group to prevent zombie child processes
+                        creationflags = 0
+                        preexec_fn = None
+                        if sys.platform == 'win32':
+                            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
                         else:
-                            output = f"Error (code {res.returncode}):\n{res.stderr.strip()}"
-                    except subprocess.TimeoutExpired:
-                        output = "Error: Timeout (5s limit)"
+                            preexec_fn = os.setsid
+
+                        proc = subprocess.Popen(
+                            [sys.executable, filepath],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            cwd=WORKSPACE,
+                            creationflags=creationflags,
+                            preexec_fn=preexec_fn,
+                        )
+                        try:
+                            stdout, stderr = proc.communicate(timeout=5)
+                            if proc.returncode == 0:
+                                output = stdout.strip() if stdout.strip() else "(Successful execution with no output)"
+                            else:
+                                output = f"Error (code {proc.returncode}):\n{stderr.strip()}"
+                        except subprocess.TimeoutExpired:
+                            # Kill entire process group to prevent zombies
+                            try:
+                                if sys.platform == 'win32':
+                                    proc.kill()
+                                else:
+                                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                            except OSError:
+                                proc.kill()
+                            proc.wait()
+                            output = "Error: Timeout (5s limit)"
                     except Exception as e:
                         output = f"Error running code: {str(e)}"
                 else:
