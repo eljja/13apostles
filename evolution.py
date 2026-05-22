@@ -18,13 +18,46 @@ JSON_RETRY_DELAY = 1.0       # Base delay (seconds) between JSON parse retries
 BASE20_CHARS = "0123456789abcdefghij"  # Character set for candidate IDs
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
+class ReverseFileHandler(logging.Handler):
+    """
+    Custom logging handler that prepends new logs to the top of the file
+    so that the newest logs are always visible at the very top.
+    """
+    def __init__(self, filename, encoding="utf-8"):
+        super().__init__()
+        self.filename = filename
+        self.encoding = encoding
+
+    def emit(self, record):
+        try:
+            msg = self.format(record) + "\n"
+            existing_content = ""
+            if os.path.exists(self.filename):
+                try:
+                    with open(self.filename, "r", encoding=self.encoding, errors="ignore") as f:
+                        existing_content = f.read()
+                except Exception:
+                    pass
+            with open(self.filename, "w", encoding=self.encoding) as f:
+                f.write(msg + existing_content)
+        except Exception:
+            self.handleError(record)
+
 logger = logging.getLogger("evolution")
 if not logger.handlers:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter(
+    # Console Stream Handler
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(logging.Formatter(
         "%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S"
     ))
-    logger.addHandler(handler)
+    logger.addHandler(stream_handler)
+
+    # Reverse File Handler (Newest logs at the top)
+    file_handler = ReverseFileHandler("evolution.log", encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    ))
+    logger.addHandler(file_handler)
     logger.setLevel(logging.INFO)
 
 
