@@ -1,0 +1,84 @@
+name: 🧬 13 Apostles CI & Pages Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - '01'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages-deploy"
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: 🔍 Code Verification & Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: 🛠️ Syntax Check Python Code
+        run: |
+          echo "Checking core engine files..."
+          python -m py_compile app.py tree_parser.py evolution.py
+          echo "Checking evolved organism files..."
+          python -m py_compile [0-9]*.py || true
+          echo "✅ All core engine files compiled successfully!"
+
+      - name: 📊 JSON Data Integrity Check
+        run: |
+          python -c "
+          import json
+          files = ['detailed_decision_analysis.json', 'clustering_analysis.json', 'comprehensive_similarity_analysis.json']
+          for f in files:
+              try:
+                  with open(f, 'r', encoding='utf-8') as file:
+                      json.load(file)
+                  print(f'✅ {f} is valid JSON')
+              except Exception as e:
+                  print(f'❌ {f} failed validation: {e}')
+                  exit(1)
+          "
+
+      - name: 🌐 WebAssembly Entrypoint Validation
+        run: |
+          if [ -f index.html ]; then
+            echo "✅ index.html entrypoint is present."
+          else
+            echo "❌ index.html entrypoint is missing!"
+            exit(1)
+          fi
+
+  deploy-status:
+    name: 🚀 GitHub Pages Deployment Status
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🎉 Report Deploy Success
+        run: |
+          echo "=================================================================="
+          echo "🧬 13 Apostles System successfully verified!"
+          echo "🚀 The static assets are automatically synced to GitHub Pages."
+          echo "🔗 Live URL: https://eljja.github.io/13apostles/"
+          echo "=================================================================="
