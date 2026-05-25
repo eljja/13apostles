@@ -15,6 +15,7 @@ A node is a ROOT if no other organism basename is a strict prefix of it.
 
 import os
 import re
+import sys
 
 # Files that belong to the framework, not organisms
 FRAMEWORK_FILES = {
@@ -25,6 +26,17 @@ FRAMEWORK_FILES = {
 
 def get_organism_basenames(workspace_dir: str) -> list[str]:
     """Return sorted list of organism .py basenames (digit-starting, non-framework)."""
+    # ─── WebAssembly (Pyodide) Virtual Filesystem Override ──────────────────────
+    if "pyodide" in sys.modules:
+        import json
+        json_path = os.path.join(workspace_dir, "detailed_decision_analysis.json")
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return sorted(list(data.keys()))
+        except Exception as e:
+            print(f"[stlite-patch] Failed to load basenames from JSON: {e}")
+
     basenames = []
     for f in sorted(os.listdir(workspace_dir)):
         if not f.endswith('.py'):
