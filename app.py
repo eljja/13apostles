@@ -696,9 +696,16 @@ def get_param(name, default):
         return val[0] if val else default
     return val
 
+def set_query_params(**kwargs):
+    try:
+        for k, v in kwargs.items():
+            st.query_params[k] = v
+    except Exception:
+        pass
+
 reset_layout = get_param("reset_layout", "false")
 if reset_layout == "true":
-    st.query_params["reset_layout"] = "false"
+    set_query_params(reset_layout="false")
 
 inspect_id = get_param("inspect", basenames[-1] if basenames else "0")
 inspect_type = get_param("type", "node")
@@ -735,14 +742,14 @@ with h3:
 with h4:
     zoom_level = st.slider("Zoom", 0.3, 3.0, zoom_val, step=0.05)
     if zoom_level != zoom_val:
-        st.query_params["zoom"] = f"{zoom_level:.2f}"
+        set_query_params(zoom=f"{zoom_level:.2f}")
         st.rerun()
 with h5:
     st.markdown("<br>", unsafe_allow_html=True)
     c_btn1, c_btn2 = st.columns(2)
     with c_btn1:
         if st.button("🔄", key="refresh", help="Refresh and Reset Layout"):
-            st.query_params["reset_layout"] = "true"
+            set_query_params(reset_layout="true")
             st.rerun()
     with c_btn2:
         with st.popover("➕", help="Add New Root"):
@@ -953,8 +960,7 @@ c1, c2, c3, c4, c5, c6 = st.columns([2.5, 1.5, 1.5, 1.5, 1.5, 4.5])
 with c1:
     target_node = st.selectbox("Evolve from", basenames, format_func=lambda x: f"{x}.py", index=idx)
     if target_node != inspect_id:
-        st.query_params["inspect"] = target_node
-        st.query_params["type"] = "node"
+        set_query_params(inspect=target_node, type="node")
         st.rerun()
 with c2:
     num_children = st.slider("Children", 1, 13, 1)
@@ -1135,8 +1141,7 @@ inspect = st.selectbox(
 )
 
 if inspect != inspect_id:
-    st.query_params["inspect"] = inspect
-    st.query_params["type"] = "node"
+    set_query_params(inspect=inspect, type="node")
     st.rerun()
 
 # ─── Helper: Render Evolutionary Diversity Analyzer ─────────────────────────
@@ -1173,43 +1178,59 @@ def render_diversity_analyzer():
                 filepath = os.path.join(WORKSPACE, f"{base}.py")
                 output = ""
                 if os.path.exists(filepath):
-                    try:
-                        # H-1: Use Popen with process group to prevent zombie child processes
-                        creationflags = 0
-                        preexec_fn = None
-                        if sys.platform == 'win32':
-                            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
-                        else:
-                            preexec_fn = os.setsid
-
-                        proc = subprocess.Popen(
-                            [sys.executable, filepath],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            text=True,
-                            cwd=WORKSPACE,
-                            creationflags=creationflags,
-                            preexec_fn=preexec_fn,
-                        )
+                    # ─── WebAssembly (Pyodide) In-Process Secure Execution ────────
+                    if "pyodide" in sys.modules:
+                        import io, contextlib
+                        stdout_buffer = io.StringIO()
                         try:
-                            stdout, stderr = proc.communicate(timeout=5)
-                            if proc.returncode == 0:
-                                output = stdout.strip() if stdout.strip() else "(Successful execution with no output)"
+                            # Prepare isolated execution namespace
+                            local_ns = {}
+                            with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stdout_buffer):
+                                exec(code, local_ns, local_ns)
+                            output = stdout_buffer.getvalue().strip()
+                            if not output:
+                                output = "(Successful execution with no output)"
+                        except Exception as e:
+                            output = f"Error running code in Wasm sandbox: {str(e)}"
+                    else:
+                        # ─── Standard Subprocess Execution (Local Desktop) ───────────
+                        try:
+                            # H-1: Use Popen with process group to prevent zombie child processes
+                            creationflags = 0
+                            preexec_fn = None
+                            if sys.platform == 'win32':
+                                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
                             else:
-                                output = f"Error (code {proc.returncode}):\n{stderr.strip()}"
-                        except subprocess.TimeoutExpired:
-                            # Kill entire process group to prevent zombies
+                                preexec_fn = os.setsid
+
+                            proc = subprocess.Popen(
+                                [sys.executable, filepath],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True,
+                                cwd=WORKSPACE,
+                                creationflags=creationflags,
+                                preexec_fn=preexec_fn,
+                            )
                             try:
-                                if sys.platform == 'win32':
-                                    proc.kill()
+                                stdout, stderr = proc.communicate(timeout=5)
+                                if proc.returncode == 0:
+                                    output = stdout.strip() if stdout.strip() else "(Successful execution with no output)"
                                 else:
-                                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                            except OSError:
-                                proc.kill()
-                            proc.wait()
-                            output = "Error: Timeout (5s limit)"
-                    except Exception as e:
-                        output = f"Error running code: {str(e)}"
+                                    output = f"Error (code {proc.returncode}):\n{stderr.strip()}"
+                            except subprocess.TimeoutExpired:
+                                # Kill entire process group to prevent zombies
+                                try:
+                                    if sys.platform == 'win32':
+                                        proc.kill()
+                                    else:
+                                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                                except OSError:
+                                    proc.kill()
+                                proc.wait()
+                                output = "Error: Timeout (5s limit)"
+                        except Exception as e:
+                            output = f"Error running code: {str(e)}"
                 else:
                     output = "Error: File not found."
 
