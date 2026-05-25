@@ -33,6 +33,7 @@ if "pyodide" in sys.modules:
     builtins.open = smart_open
 
 import streamlit as st
+import streamlit.components.v1 as components
 import os, sys, io, time, json, re, datetime, difflib, subprocess, signal
 from evolution import EvolutionEngine
 from tree_parser import (
@@ -177,7 +178,7 @@ hr { border-color: rgba(99,102,241,0.12) !important; margin: 12px 0 !important; 
 # ─── Parent Window Event Listener Injection ──────────────────────────────────
 # We inject a script into the parent window using a 0-height iframe to bypass
 # Streamlit's st.markdown HTML sanitization of inline event handlers.
-st.iframe("""
+components.html("""
 <script>
   const parentWin = window.parent;
   if (!parentWin.hasStreamlitParamListener) {
@@ -936,7 +937,7 @@ cy.on('zoom', function(e) {{
 }});
 </script>
 """
-st.iframe(cy_html, height=graph_h + 10)
+components.html(cy_html, height=graph_h + 10)
 
 # ─── Controls ───────────────────────────────────────────────────────────────
 st.markdown("---")
