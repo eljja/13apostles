@@ -1,0 +1,197 @@
+{
+    "optimal_k": 8,
+    "silhouette_scores": {
+        "3": 0.17180253854999913,
+        "4": 0.17676994648687133,
+        "5": 0.19320328320231034,
+        "6": 0.20246415714770605,
+        "7": 0.20892437708992495,
+        "8": 0.21280324512351512,
+        "9": 0.18874562616340193,
+        "10": 0.18174459885960975
+    },
+    "cluster_analysis": {
+        "0": {
+            "size": 30,
+            "longest_common_ancestor": "0468",
+            "major_branches_represented": {
+                "04": 30
+            },
+            "avg_code_length": 5155.266666666666,
+            "has_sys_limit_ratio": 0.0,
+            "has_bitwise_ratio": 0.43333333333333335,
+            "nodes_sample": [
+                "04688010",
+                "04688012",
+                "04688018",
+                "04688019",
+                "0468801c",
+                "0468802",
+                "0468808",
+                "0468809"
+            ]
+        },
+        "1": {
+            "size": 36,
+            "longest_common_ancestor": "017",
+            "major_branches_represented": {
+                "01": 36
+            },
+            "avg_code_length": 9550.861111111111,
+            "has_sys_limit_ratio": 0.0,
+            "has_bitwise_ratio": 0.08333333333333333,
+            "nodes_sample": [
+                "017202",
+                "017206",
+                "017207",
+                "01720a",
+                "01720b",
+                "01720c",
+                "017222",
+                "017226"
+            ]
+        },
+        "2": {
+            "size": 72,
+            "longest_common_ancestor": "0",
+            "major_branches_represented": {
+                "00": 71,
+                "04": 1
+            },
+            "avg_code_length": 7670.805555555556,
+            "has_sys_limit_ratio": 0.20833333333333334,
+            "has_bitwise_ratio": 0.3333333333333333,
+            "nodes_sample": [
+                "00620",
+                "006220",
+                "006222",
+                "006226",
+                "006227",
+                "00622a",
+                "00622b",
+                "00626"
+            ]
+        },
+        "3": {
+            "size": 16,
+            "longest_common_ancestor": "0126",
+            "major_branches_represented": {
+                "01": 16
+            },
+            "avg_code_length": 8957.9375,
+            "has_sys_limit_ratio": 0.0,
+            "has_bitwise_ratio": 0.25,
+            "nodes_sample": [
+                "012620",
+                "012622",
+                "012626",
+                "012627",
+                "012628",
+                "01262a",
+                "01266",
+                "01267"
+            ]
+        },
+        "4": {
+            "size": 54,
+            "longest_common_ancestor": "0",
+            "major_branches_represented": {
+                "00": 1,
+                "04": 53
+            },
+            "avg_code_length": 5093.592592592592,
+            "has_sys_limit_ratio": 0.07407407407407407,
+            "has_bitwise_ratio": 0.16666666666666666,
+            "nodes_sample": [
+                "0065",
+                "0464",
+                "0466",
+                "04682",
+                "04686",
+                "0468a1",
+                "0468a730",
+                "0468a734"
+            ]
+        },
+        "5": {
+            "size": 19,
+            "longest_common_ancestor": "01",
+            "major_branches_represented": {
+                "01": 19
+            },
+            "avg_code_length": 7249.631578947368,
+            "has_sys_limit_ratio": 0.05263157894736842,
+            "has_bitwise_ratio": 0.5789473684210527,
+            "nodes_sample": [
+                "010",
+                "0121",
+                "0122",
+                "0124",
+                "0129",
+                "012c2",
+                "012c3",
+                "012c6"
+            ]
+        },
+        "6": {
+            "size": 13,
+            "longest_common_ancestor": "046",
+            "major_branches_represented": {
+                "04": 13
+            },
+            "avg_code_length": 5675.384615384615,
+            "has_sys_limit_ratio": 0.0,
+            "has_bitwise_ratio": 0.0,
+            "nodes_sample": [
+                "0468a80",
+                "0468a843",
+                "0468a848",
+                "0468a849",
+                "0468a84c",
+                "0468a881",
+                "0468a884",
+                "0468a886"
+            ]
+        },
+        "7": {
+            "size": 19,
+            "longest_common_ancestor": "04698",
+            "major_branches_represented": {
+                "04": 19
+            },
+            "avg_code_length": 4955.894736842105,
+            "has_sys_limit_ratio": 0.0,
+            "has_bitwise_ratio": 0.21052631578947367,
+            "nodes_sample": [
+                "04698112",
+                "04698114",
+                "04698116",
+                "04698117",
+                "0469811b",
+                "04698142",
+                "04698146",
+                "04698147"
+            ]
+        }
+    },
+    "convergent_evolution_cases": [
+        {
+            "cluster_id": 2,
+            "common_ancestor": "0",
+            "branches": {
+                "00": 71,
+                "04": 1
+            },
+            "size": 72
+        },
+        {
+            "cluster_id": 4,
+            "common_ancestor": "0",
+            "branches": {
+                "00": 1,
+                "04": 53
+            },
+            "size": 54
+        }
+    ]
+}

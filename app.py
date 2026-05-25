@@ -1,6 +1,37 @@
 """
 app.py — 13 Apostles System: Evolution Dashboard
 """
+import sys
+# ─── Stlite (WebAssembly) On-Demand HTTP File Fetching Patch ─────────────────
+if "pyodide" in sys.modules:
+    import builtins
+    import urllib.request
+    import os
+    original_open = builtins.open
+    
+    def smart_open(file, *args, **kwargs):
+        try:
+            return original_open(file, *args, **kwargs)
+        except FileNotFoundError as e:
+            filename = str(file)
+            # If a relative file is missing, fetch it dynamically from the server via HTTP
+            if filename.endswith((".py", ".md", ".json")):
+                url = f"./{filename}"
+                try:
+                    with urllib.request.urlopen(url) as response:
+                        content = response.read()
+                    dirname = os.path.dirname(filename)
+                    if dirname:
+                        os.makedirs(dirname, exist_ok=True)
+                    with original_open(filename, "wb") as f:
+                        f.write(content)
+                    return original_open(file, *args, **kwargs)
+                except Exception as ex:
+                    print(f"[stlite-patch] Failed to fetch {filename} over HTTP: {ex}")
+            raise e
+            
+    builtins.open = smart_open
+
 import streamlit as st
 import os, sys, io, time, json, re, datetime, difflib, subprocess, signal
 from evolution import EvolutionEngine

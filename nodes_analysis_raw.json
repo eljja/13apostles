@@ -1,0 +1,169 @@
+{
+    "total_nodes": 321,
+    "roots": [
+        "0"
+    ],
+    "max_depth": 7,
+    "deepest_node": "04688010",
+    "generations_distribution": [
+        [
+            0,
+            1
+        ],
+        [
+            1,
+            3
+        ],
+        [
+            2,
+            10
+        ],
+        [
+            3,
+            29
+        ],
+        [
+            4,
+            57
+        ],
+        [
+            5,
+            109
+        ],
+        [
+            6,
+            35
+        ],
+        [
+            7,
+            77
+        ]
+    ],
+    "algorithm_distribution": {
+        "Trial Division / Basic Loop": 5,
+        "Sieve of Eratosthenes / Segmented": 0,
+        "Miller-Rabin (Probabilistic/Deterministic)": 316,
+        "Bitwise & Custom Multi-Check": 0
+    },
+    "bitwise_count": 313,
+    "sys_limit_count": 21,
+    "avg_branching_factor": 0.9968847352024922,
+    "num_leaves": 259,
+    "longest_lineage": [
+        "0",
+        "04",
+        "046",
+        "0468",
+        "04688",
+        "046880",
+        "0468801",
+        "04688010"
+    ],
+    "nodes_sample": {
+        "0": {
+            "depth": 0,
+            "size": 5199,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "00": {
+            "depth": 1,
+            "size": 5792,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "006": {
+            "depth": 2,
+            "size": 6081,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "0062": {
+            "depth": 3,
+            "size": 6337,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "00620": {
+            "depth": 4,
+            "size": 6823,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "00622": {
+            "depth": 4,
+            "size": 7157,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "006220": {
+            "depth": 5,
+            "size": 7642,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "006222": {
+            "depth": 5,
+            "size": 7682,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "006226": {
+            "depth": 5,
+            "size": 8030,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "006227": {
+            "depth": 5,
+            "size": 7704,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "00622a": {
+            "depth": 5,
+            "size": 7459,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "00622b": {
+            "depth": 5,
+            "size": 7998,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "00626": {
+            "depth": 4,
+            "size": 6969,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "00627": {
+            "depth": 4,
+            "size": 6509,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        },
+        "006270": {
+            "depth": 5,
+            "size": 6854,
+            "algo": "Miller-Rabin (Probabilistic/Deterministic)",
+            "bitwise": true,
+            "sys_limit": false
+        }
+    }
+}
