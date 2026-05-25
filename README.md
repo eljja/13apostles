@@ -4,6 +4,8 @@
 > 
 > *Empirically validated on a phylogenetic tree of **321 unique compile-ready organisms** spanning 7 generations under strict wall-clock execution guards.*
 
+👉 **[Launch Live Serverless WebAssembly Dashboard on GitHub Pages](https://eljja.github.io/13apostles/)**
+
 ---
 
 ## 🗺️ 1. System Architecture
