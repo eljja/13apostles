@@ -16,7 +16,8 @@ if "pyodide" in sys.modules:
             filename = str(file)
             # If a relative file is missing, fetch it dynamically from the server via HTTP
             if filename.endswith((".py", ".md", ".json")):
-                url = f"./{filename}"
+                import time
+                url = f"./{filename}?v={int(time.time())}"
                 try:
                     with urllib.request.urlopen(url) as response:
                         content = response.read()
