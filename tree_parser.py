@@ -29,11 +29,11 @@ def get_organism_basenames(workspace_dir: str) -> list[str]:
     # ─── WebAssembly (Pyodide) Virtual Filesystem Override ──────────────────────
     if "pyodide" in sys.modules:
         import json
-        json_path = os.path.join(workspace_dir, "detailed_decision_analysis.json")
+        json_path = os.path.join(workspace_dir, "organism_basenames.json")
         try:
             with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return sorted(list(data.keys()))
+            return sorted(data)
         except Exception as e:
             print(f"[stlite-patch] Failed to load basenames from JSON: {e}")
 
