@@ -35,6 +35,13 @@ if "pyodide" in sys.modules:
 
 import streamlit as st
 import streamlit.components.v1 as components
+
+# ─── Streamlit Version Compatibility Patch ───────────────────────────────────
+# Futuristic local Streamlit uses st.iframe and deprecates components.html.
+# Older Streamlit (and browser Wasm Stlite) does not have st.iframe and uses components.html.
+if not hasattr(st, "iframe"):
+    st.iframe = components.html
+
 import os, sys, io, time, json, re, datetime, difflib, subprocess, signal
 from evolution import EvolutionEngine
 from tree_parser import (
@@ -179,7 +186,7 @@ hr { border-color: rgba(99,102,241,0.12) !important; margin: 12px 0 !important; 
 # ─── Parent Window Event Listener Injection ──────────────────────────────────
 # We inject a script into the parent window using a 0-height iframe to bypass
 # Streamlit's st.markdown HTML sanitization of inline event handlers.
-components.html("""
+st.iframe("""
 <script>
   const parentWin = window.parent;
   if (!parentWin.hasStreamlitParamListener) {
@@ -938,7 +945,7 @@ cy.on('zoom', function(e) {{
 }});
 </script>
 """
-components.html(cy_html, height=graph_h + 10)
+st.iframe(cy_html, height=graph_h + 10)
 
 # ─── Controls ───────────────────────────────────────────────────────────────
 st.markdown("---")
