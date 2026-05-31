@@ -117,6 +117,31 @@ def parse_decision_log_descriptions(workspace_dir: str, basenames: list[str]) ->
     Returns {child_basename: title_string}
     """
     descriptions = {}
+    
+    # ─── WebAssembly (Pyodide) Virtual Filesystem Patch ────────────────────────
+    # In Pyodide WebAssembly, individual markdown files aren't in VFS.
+    # We load descriptions directly from the pre-bundled detailed_decision_analysis.json.
+    if "pyodide" in sys.modules or not any(os.path.exists(os.path.join(workspace_dir, f"{b}.md")) for b in basenames):
+        json_path = os.path.join(workspace_dir, "detailed_decision_analysis.json")
+        if os.path.exists(json_path):
+            try:
+                import json
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                for parent_name, parent_data in data.items():
+                    candidates_map = {str(c["id"]): c["title"] for c in parent_data.get("candidates", [])}
+                    for child in parent_data.get("children", []):
+                        child_fn = child.get("filename", "")
+                        if child_fn.endswith(".py"):
+                            child_base = child_fn[:-3]
+                            cand_id = str(child.get("parent_candidate_id", ""))
+                            if cand_id in candidates_map:
+                                descriptions[child_base] = candidates_map[cand_id]
+            except Exception as e:
+                print(f"[stlite-patch] Failed to parse descriptions from detailed_decision_analysis.json: {e}")
+        if descriptions:
+            return descriptions
+
     for base in basenames:
         md_path = os.path.join(workspace_dir, f"{base}.md")
         if not os.path.exists(md_path):
@@ -137,6 +162,16 @@ def parse_decision_log_descriptions(workspace_dir: str, basenames: list[str]) ->
 
 def load_objective(workspace_dir: str, root_basename: str) -> str | None:
     """Load the local objective .md for a root seed, if it exists."""
+    # ─── WebAssembly (Pyodide) HTTP Fetching Patch ──────────────────────────────
+    if "pyodide" in sys.modules:
+        from pyodide.http import open_url
+        import time
+        try:
+            url = f"./{root_basename}.objective.md?v={int(time.time())}"
+            return open_url(url).read()
+        except Exception:
+            return None
+
     obj_path = os.path.join(workspace_dir, f"{root_basename}.objective.md")
     if os.path.exists(obj_path):
         with open(obj_path, 'r', encoding='utf-8') as f:
@@ -146,6 +181,16 @@ def load_objective(workspace_dir: str, root_basename: str) -> str | None:
 
 def load_decision_log(workspace_dir: str, basename: str) -> str | None:
     """Load the full decision log .md for a node, or dynamically extract it from ancestors."""
+    # ─── WebAssembly (Pyodide) HTTP Fetching Patch ──────────────────────────────
+    if "pyodide" in sys.modules:
+        from pyodide.http import open_url
+        import time
+        try:
+            url = f"./{basename}.md?v={int(time.time())}"
+            return open_url(url).read()
+        except Exception:
+            pass
+
     md_path = os.path.join(workspace_dir, f"{basename}.md")
     if os.path.exists(md_path):
         with open(md_path, 'r', encoding='utf-8') as f:
@@ -157,12 +202,26 @@ def load_decision_log(workspace_dir: str, basename: str) -> str | None:
     ancestors = sorted(ancestors, key=len, reverse=True)
 
     for ancestor in ancestors:
-        anc_md_path = os.path.join(workspace_dir, f"{ancestor}.md")
-        if os.path.exists(anc_md_path):
+        content = None
+        if "pyodide" in sys.modules:
+            from pyodide.http import open_url
+            import time
             try:
-                with open(anc_md_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                url = f"./{ancestor}.md?v={int(time.time())}"
+                content = open_url(url).read()
+            except Exception:
+                pass
+        else:
+            anc_md_path = os.path.join(workspace_dir, f"{ancestor}.md")
+            if os.path.exists(anc_md_path):
+                try:
+                    with open(anc_md_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                except Exception:
+                    pass
 
+        if content:
+            try:
                 # Search for basename in the ancestor's spawned list to get the candidate key
                 pattern = r'-\s*\*\*' + re.escape(basename) + r'\.py\*\*\s*<-\s*\[(.*?)\]'
                 match = re.search(pattern, content, re.IGNORECASE)
@@ -201,6 +260,17 @@ def load_decision_log(workspace_dir: str, basename: str) -> str | None:
 
 def load_code(workspace_dir: str, basename: str) -> str | None:
     """Load the Python source of a node."""
+    # ─── WebAssembly (Pyodide) HTTP Fetching Patch ──────────────────────────────
+    if "pyodide" in sys.modules:
+        from pyodide.http import open_url
+        import time
+        try:
+            url = f"./{basename}.py?v={int(time.time())}"
+            return open_url(url).read()
+        except Exception as e:
+            print(f"[stlite-patch] Failed to fetch {basename}.py over HTTP: {e}")
+            pass
+
     py_path = os.path.join(workspace_dir, f"{basename}.py")
     if os.path.exists(py_path):
         with open(py_path, 'r', encoding='utf-8') as f:

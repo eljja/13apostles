@@ -66,8 +66,15 @@ $$V_j(G_{\text{cand}}) = \begin{cases} 1 & \text{if } \exists k \in \{1..4\} \te
 후보 유전체 $G_{\text{cand}}$가 사도 연합 $\mathcal{A}$ 전체의 사적 효용 임계 조건을 상호 만족하고, 거부권을 발동하지 않는 비지배적 균형 상태, 즉 **내시 균형(Nash Equilibrium)**에 도달할 때만 **사회적 합의 타협 집합 (Pareto-Veto Core)** $\mathcal{C}(\mathcal{G})$에 진입한다:
 $$\mathcal{C}(\mathcal{G}) = \left\{ G_{\text{cand}} \in \mathcal{G} \;\middle|\; \sum_{j=1}^{13} V_j(G_{\text{cand}}) = 0 \text{ and } \nexists G' \in \mathcal{G} \text{ s.t. } \forall j, \mathbf{U}_j(G') \ge \mathbf{U}_j(G_{\text{cand}}) \text{ with at least one strict inequality} \right}$$
 
-이러한 거부 필터링 메커니즘은 무한 이산 공간 $\mathcal{G}$를 안정적이고 콤팩트한 다양체 $\mathcal{C}(\mathcal{G})$로 사상하며, 투표 프로파일을 단봉형(Single-peaked) 임계 제한 효용 공간으로 축소시킴으로써 아로우의 불가능성 정리를 성공적으로 극복한다. 단 하나의 사도라도 거부권을 행사하면 ($\sum_{j=1}^{13} V_j(G_{\text{cand}}) \ge 1$), 해당 후보는 최적화 방향의 기만성 혹은 치명적 취약성으로 인해 즉각 탈락(**Vetoed/Dead**)된다. 생존한 타협 후보들은 사도들의 역동적 페르소나 가중 벡터 $\mathbf{w}_j$와의 선형 결합 점수에 의해 최종 랭킹화된다:
+이러한 거부 필터링 메커니즘은 무한 이산 공간 $\mathcal{G}$를 안정적이고 콤팩트한 다양체 $\mathcal{C}(\mathcal{G})$로 사상하며, 투표 프로파일을 단봉형(Single-peaked) 임계 제한 효용 공간으로 축소시킴으로써 아로우의 불가능성 정리를 성공적으로 극복한다. 단 하나의 사도라도 거부권을 행사하면 ($\sum_{j=1}^{13} V_j(G_{\text{cand}}) \ge 1$), 해당 후보는 최적화 방향의 기만성 혹은 치명적 취약성으로 인해 즉각 탈락(**Vetoed/Dead**)된다.
+
+생존한 타협 후보들은 사도들의 의사결정 점수에 의해 최종 랭킹화된다. 실증 시스템 구현체에서는 다음과 같은 다차원 곱셈 식을 적용한다:
+$$S_{\text{empirical}}(G_{\text{cand}}) = \frac{I \cdot F \cdot A \cdot S}{C}$$
+여기서 $I$는 기대효과, $F$는 구현가능성, $A$는 목표정렬 점수이고, $S$와 $C$는 각각 안전성 및 비용 계수이다. 이 식에 자연로그를 취하면, 곱셈 연산은 수학적으로 완벽한 선형 가중 합산 구조로 동치 변환된다:
+$$\ln S_{\text{empirical}}(G_{\text{cand}}) = \ln I + \ln F + \ln A + \ln S - \ln C$$
+이 로그 공간에서의 선형 대칭성은 거시경제학 및 사회 선택 이론에서 널리 쓰이는 **Cobb-Douglas 형 효용 함수** $\mathcal{U}(I, F, A, S, C) = I^{\beta_1} F^{\beta_2} A^{\beta_3} S^{\beta_4} C^{-\beta_5}$ 와 완벽한 상동성을 이루며, 구현 엔진과 이론적 선형 투표 모델 간의 수학적 정합성을 담보한다:
 $$S(G_{\text{cand}}) = \sum_{j=1}^{13} \mathbf{w}_j \cdot \mathbf{U}_j(G_{\text{cand}})$$
+여기서 $\mathbf{w}_j$는 사도별 동적 가중 벡터이다.
 
 
 ```mermaid
@@ -248,11 +255,11 @@ flowchart TD
 전체 유전체 길이는 $N = N_E + N_I$이며, 전체 유전체 대비 비코딩 완충 영역의 면적 비율을 **완충비 (Cushioning Ratio)** $\alpha = N_I / N \in [0, 1)$로 정의한다.
 
 #### 정리 (돌연변이 완충 정리, Mutational Cushioning Theorem)
-*유전체 $G$가 토큰당 uniform 변이 발생률 $p$를 따르는 무작위 점 변이(Point Mutation)를 겪는다고 하자. 유전체 전역에서 발생하는 기대 변이 빈도를 $\lambda = Np$라 정의한다. 만약 프로그램의 구문 및 기능적 붕괴 사건 $\mathcal{D}_{\text{collapse}}$를 '활성 코딩 영역 $G_{\text{exon}}$에 최소 1개 이상의 변이가 침범하는 사건'으로 정의할 때, 구문적 붕괴 확률 $P(\mathcal{D}_{\text{collapse}})$는 완충비 $\alpha$에 대해 엄격한 단조 감소 함수이며, 다음을 만족한다:*
+*유전체 $G$가 토큰당 uniform 변이 발생률 $p$를 따르는 무작위 점 변이(Point Mutation)를 겪는다고 하자. 단, 유전체가 갖는 **전체 기대 변이 빈도 $\lambda > 0$는 고정된 상수(Fixed Global Mutation Budget)**이며, 이에 따라 개별 토큰당 변이 확률 $p = \lambda/N$은 전체 유전체 길이 $N$에 반비례하여 감쇄하여 생성기의 전체 구문 노이즈 예산을 표현한다. 만약 프로그램의 구문 및 기능적 붕괴 사건 $\mathcal{D}_{\text{collapse}}$를 '활성 코딩 영역 $G_{\text{exon}}$에 최소 1개 이상의 변이가 침범하는 사건'으로 정의할 때, 구문적 붕괴 확률 $P(\mathcal{D}_{\text{collapse}})$는 완충비 $\alpha$에 대해 엄격한 단조 감소 함수이며, 다음을 만족한다:*
 $$P(\mathcal{D}_{\text{collapse}}) = 1 - e^{-\lambda(1 - \alpha)}$$
 
 #### 증명
-유전체 시퀀스 전역에서 발생하는 변이 사건의 수 $M$을 파라미터 $\lambda = Np$를 따르는 이산 확률 변수 포아송 분포(Poisson Distribution)로 모델링한다:
+고정된 기대 전역 변이 빈도 $\lambda$ 하에, 유전체 시퀀스 전역에서 발생하는 변이 사건의 수 $M$을 파라미터 $\lambda = Np$를 따르는 이산 확률 변수 포아송 분포(Poisson Distribution)로 모델링한다:
 $$P(M = m) = \frac{\lambda^m e^{-\lambda}}{m!}$$
 
 발생한 임의의 개별 변이가 활성 기능에 영향을 주지 않고 비코딩 완충 영역 $G_{\text{intron}}$ 내로 떨어져 무력화될 확률은 유전체 면적 대비 균등하며, 완충비 $\alpha$에 정확히 비례한다:
@@ -270,13 +277,13 @@ $$P(\text{neutral}) = e^{-\lambda} e^{\alpha\lambda} = e^{-\lambda(1 - \alpha)}$
 따라서, 핵심 알고리즘이 파괴되는 프로그램 구문적 붕괴 확률 $P(\mathcal{D}_{\text{collapse}})$는 중립 생존 확률의 여사건으로 정의된다:
 $$P(\mathcal{D}_{\text{collapse}}) = 1 - P(\text{neutral}) = 1 - e^{-\lambda(1 - \alpha)}$$
 
-비코딩 완충비 $\alpha$의 변화에 따른 구문 붕괴 확률의 한계 반응(Marginal Response)을 규명하기 위해, $\alpha$에 대해 1계 편도함수를 구한다:
+비코딩 완충비 $\alpha$의 변화에 따른 구문 붕괴 확률의 한계 반응(Marginal Response)을 규명하기 위해, 전역 변이 예산 $\lambda$를 고정한 상태에서 $\alpha$에 대해 1계 편도함수를 구한다:
 $$\frac{d}{d\alpha} P(\mathcal{D}_{\text{collapse}}) = \frac{d}{d\alpha} \left( 1 - e^{-\lambda(1 - \alpha)} \right) = -\lambda e^{-\lambda(1 - \alpha)}$$
 
 기대 변이율 $\lambda > 0$이고 모든 타당한 $\alpha \in [0, 1)$ 범위에 대해 지수항 $e^{-\lambda(1-\alpha)} > 0$이므로, 다음이 성립한다:
 $$\frac{d}{d\alpha} P(\mathcal{D}_{\text{collapse}}) < 0 \quad \forall \alpha \in [0, 1)$$
 
-이 편도함수는 전 영역에서 strictly negative하다. 따라서 비코딩 완충 비율 $\alpha$가 증가할수록 프로그램 구문 붕괴 확률은 단조 감소(Monotonically Decrease)함이 수학적으로 증명된다. $\blacksquare$
+이 편도함수는 전 영역에서 strictly negative하다. 따라서 고정된 전역 변이 예산 $\lambda$ 하에 비코딩 완충 비율 $\alpha$가 증가할수록 프로그램 구문 붕괴 확률은 단조 감소(Monotonically Decrease)함이 수학적으로 증명된다. $\blacksquare$
 
 #### 학술적 A/B 대조 실험 프로토콜 (Empirical Validation Protocol)
 이를 실리콘 공간에서 통계적으로 증명하기 위해 다음과 같은 엄밀한 통제 실험 프로토콜을 구현한다:

@@ -61,9 +61,15 @@ $$V_j(G_{\text{cand}}) = \begin{cases} 1 & \text{if } \exists k \in \{1..4\} \te
 A candidate genotype $G_{\text{cand}}$ belongs to the **Social Compromise Set (Pareto-Veto Core)** $\mathcal{C}(\mathcal{G})$ if and only if it is mutually acceptable and non-dominated by all members of the coalition $\mathcal{A}$ under their individual cognitive utility boundaries:
 $$\mathcal{C}(\mathcal{G}) = \left\{ G_{\text{cand}} \in \mathcal{G} \;\middle|\; \sum_{j=1}^{13} V_j(G_{\text{cand}}) = 0 \text{ and } \nexists G' \in \mathcal{G} \text{ s.t. } \forall j, \mathbf{U}_j(G') \ge \mathbf{U}_j(G_{\text{cand}}) \text{ with at least one strict inequality} \right\}$$
 
-By enforcing the veto, the system projects the infinite discrete space $\mathcal{G}$ onto a stable, compact manifold $\mathcal{C}(\mathcal{G})$, successfully bypassing the classical Arrow's Impossibility Theorem by restricting the voting profile to single-peaked, threshold-constrained utility spaces. If even a single agent triggers a veto ($\sum_{j=1}^{13} V_j(G_{\text{cand}}) \ge 1$), the candidate is immediately disqualified (**Vetoed/Dead**), protecting the ecosystem from code corruption and greedy cheating. The remaining viable candidates are ranked by their aggregate Pareto score:
+By enforcing the veto, the system projects the infinite discrete space $\mathcal{G}$ onto a stable, compact manifold $\mathcal{C}(\mathcal{G})$, successfully bypassing the classical Arrow's Impossibility Theorem by restricting the voting profile to single-peaked, threshold-constrained utility spaces. If even a single agent triggers a veto ($\sum_{j=1}^{13} V_j(G_{\text{cand}}) \ge 1$), the candidate is immediately disqualified (**Vetoed/Dead**), protecting the ecosystem from code corruption and greedy cheating. 
+
+The remaining viable candidates are ranked by their aggregate Pareto score. In the empirical implementation, the system utilizes a multiplicative aggregation metric:
+$$S_{\text{empirical}}(G_{\text{cand}}) = \frac{I \cdot F \cdot A \cdot S}{C}$$
+where $I$ is Expected Impact, $F$ is Feasibility, $A$ is Goal Alignment, $S$ is Safety Multiplier, and $C$ is Cost Multiplier. Under a natural logarithmic transformation, this multiplicative formulation is mathematically equivalent to a weighted linear combination of log-transformed cardinal utilities:
+$$\ln S_{\text{empirical}}(G_{\text{cand}}) = \ln I + \ln F + \ln A + \ln S - \ln C$$
+This linear equivalence in log-space maps directly to a classic Cobb-Douglas utility function $\mathcal{U}(I, F, A, S, C) = I^{\beta_1} F^{\beta_2} A^{\beta_3} S^{\beta_4} C^{-\beta_5}$ commonly deployed in welfare economics and social choice theory, ensuring structural consistency between our empirical scoring engine and the generalized linear voting model:
 $$S(G_{\text{cand}}) = \sum_{j=1}^{13} \mathbf{w}_j \cdot \mathbf{U}_j(G_{\text{cand}})$$
-where $\mathbf{w}_j$ represents the dynamic persona weighting vector.ctor.
+where $\mathbf{w}_j$ represents the dynamic persona weighting vector.
 
 ### D. Hierarchical Ecological States Model
 To prevent evolutionary stagnation at local optima (greedy selection entrapment), the framework avoids a simplistic "kill or survive" binary selection. Instead, it classifies organisms into five ecological states:
@@ -203,14 +209,14 @@ Let a program genotype $G$ be represented as a discrete sequence of syntactic to
 The total genome length is $N = N_E + N_I$. We define the **cushioning ratio** as $\alpha = N_I / N \in [0, 1)$.
 
 #### Theorem (Mutational Cushioning Theorem)
-*Let the genome $G$ be subjected to point mutation events following a uniform error rate per token $p$. Let $\lambda = Np$ represent the expected mutation frequency across the genome. If a program collapse event $\mathcal{D}_{\text{collapse}}$ is defined as any mutation event that disrupts at least one token in the active coding sequence $G_{\text{exon}}$, then the probability of syntactic collapse $P(\mathcal{D}_{\text{collapse}})$ is a strictly decreasing function of the cushioning ratio $\alpha$, formulated as:*
+*Let the genome $G$ be subjected to point mutation events following a **fixed expected global mutation budget $\lambda > 0$ per generation** (where $\lambda = Np$, and the mutation probability per token $p = \lambda/N$ scales inversely with total genome length $N$ to represent the average syntactic noise budget of the generator). If a program collapse event $\mathcal{D}_{\text{collapse}}$ is defined as any mutation event that disrupts at least one token in the active coding sequence $G_{\text{exon}}$, then the probability of syntactic collapse $P(\mathcal{D}_{\text{collapse}})$ is a strictly decreasing function of the cushioning ratio $\alpha$, formulated as:*
 $$P(\mathcal{D}_{\text{collapse}}) = 1 - e^{-\lambda(1 - \alpha)}$$
 
 #### Proof
-We model the number of mutation events $M$ occurring across the genome sequence as a random variable following a Poisson distribution with parameter $\lambda = Np$:
+Under a fixed expected global mutation frequency $\lambda$, the number of mutation events $M$ occurring across the genome sequence is modeled as a random variable following a Poisson distribution with parameter $\lambda = Np$:
 $$P(M = m) = \frac{\lambda^m e^{-\lambda}}{m!}$$
 
-For each individual mutation event, the probability that the mutation lands within the non-coding buffer sequence $G_{\text{intron}}$ is uniform and proportional to the cushioning ratio:
+For each individual mutation event, the probability that the mutation lands within the non-coding buffer sequence $G_{\text{intron}}$ is uniform and proportional to the cushioning ratio $\alpha$:
 $$P(\text{neutral} \mid M = 1) = \frac{N_I}{N} = \alpha$$
 
 Since all $m$ mutation events occur independently and uniformly across the sequence, the conditional probability that all $m$ mutations land inside the non-coding cushion (resulting in a functionally neutral transition) is:
@@ -225,13 +231,13 @@ $$P(\text{neutral}) = e^{-\lambda} e^{\alpha\lambda} = e^{-\lambda(1 - \alpha)}$
 The probability of program syntactic collapse $\mathcal{D}_{\text{collapse}}$ is the complement of the neutral survival probability:
 $$P(\mathcal{D}_{\text{collapse}}) = 1 - P(\text{neutral}) = 1 - e^{-\lambda(1 - \alpha)}$$
 
-To determine the mathematical behavior of the collapse probability under changes in the cushion density, we take the first derivative of $P(\mathcal{D}_{\text{collapse}})$ with respect to $\alpha$:
+To determine the mathematical behavior of the collapse probability under changes in the cushion density, we take the first derivative of $P(\mathcal{D}_{\text{collapse}})$ with respect to $\alpha$, holding the global mutation budget $\lambda$ constant:
 $$\frac{d}{d\alpha} P(\mathcal{D}_{\text{collapse}}) = \frac{d}{d\alpha} \left( 1 - e^{-\lambda(1 - \alpha)} \right) = -\lambda e^{-\lambda(1 - \alpha)}$$
 
-Since $\lambda > 0$ and $e^{-\lambda(1-\alpha)} > 0$ for all valid $\alpha$, we have:
+Since $\lambda > 0$ and $e^{-\lambda(1-\alpha)} > 0$ for all valid $\alpha \in [0, 1)$, we have:
 $$\frac{d}{d\alpha} P(\mathcal{D}_{\text{collapse}}) < 0 \quad \forall \alpha \in [0, 1)$$
 
-This derivative is strictly negative, proving that the probability of syntactic collapse monotonically decreases as the proportion of non-coding buffer tokens increases. $\blacksquare$
+This derivative is strictly negative, proving that under a fixed expected global mutation frequency $\lambda$, the probability of syntactic collapse monotonically decreases as the proportion of non-coding buffer tokens increases. $\blacksquare$
 
 #### Empirical A/B Test Validation Protocol
 To validate this theorem in silicon, we establish the following experimental protocol:

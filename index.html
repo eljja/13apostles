@@ -63,9 +63,108 @@
       @keyframes spin {
         to { transform: rotate(360deg); }
       }
+
+      /* Premium Glassmorphism Floating Dock */
+      .floating-dock {
+        position: fixed;
+        top: 20px;
+        right: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        z-index: 9999;
+        background: rgba(13, 17, 23, 0.75);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 30px;
+        padding: 6px 14px;
+        box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.4);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .floating-dock:hover {
+        border-color: rgba(99, 102, 241, 0.4);
+        box-shadow: 0 12px 32px 0 rgba(99, 102, 241, 0.18);
+        transform: translateY(-2px);
+      }
+      
+      .dock-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: 20px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        letter-spacing: 0.03em;
+        user-select: none;
+      }
+      
+      .github-btn {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      
+      .github-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+      
+      .paper-btn {
+        color: #a5b4fc;
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.18);
+      }
+      
+      .paper-btn:hover {
+        color: #ffffff;
+        background: rgba(99, 102, 241, 0.25);
+        border-color: rgba(99, 102, 241, 0.45);
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+      }
+
+      /* Responsive styling for mobile devices */
+      @media (max-width: 768px) {
+        .floating-dock {
+          top: auto;
+          bottom: 24px;
+          right: 50%;
+          transform: translateX(50%);
+          padding: 6px 10px;
+          gap: 8px;
+          box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.5);
+        }
+        .floating-dock:hover {
+          transform: translateX(50%) translateY(-2px);
+        }
+        .dock-btn {
+          font-size: 0.75rem;
+          padding: 5px 10px;
+        }
+      }
     </style>
   </head>
   <body>
+    <!-- Premium Glassmorphism Floating Dock for GitHub Pages redirection -->
+    <div class="floating-dock">
+      <a href="https://github.com/eljja/13apostles" target="_blank" class="dock-btn github-btn" title="View Source Code on GitHub">
+        <svg height="14" width="14" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block; vertical-align:middle;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        <span>GitHub</span>
+      </a>
+      <a href="https://github.com/eljja/13apostles/blob/main/scientific_analysis.md" target="_blank" class="dock-btn paper-btn en-btn" title="Read Scientific Paper (English)">
+        <svg height="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>Paper (EN)</span>
+      </a>
+      <a href="https://github.com/eljja/13apostles/blob/main/scientific_analysis_ko.md" target="_blank" class="dock-btn paper-btn ko-btn" title="학술 연구 논문 전문 읽기 (한글 번역)">
+        <svg height="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>논문 (KO)</span>
+      </a>
+    </div>
+
     <!-- Premium WebAssembly Boot Loader -->
     <div id="stlite-loader">
       <div class="spinner"></div>

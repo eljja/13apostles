@@ -52,7 +52,7 @@ Through comprehensive analysis of our 321-node silicon tree, the system demonstr
     $$\sum_{G_{\text{cand}} \in \mathcal{L}} P(G_{\text{cand}} \mid G, a_j, \mathcal{C}) \ge 1 - \delta \quad (\delta < 10^{-3})$$
 *   **Pareto-Veto Social Consensus Choice**: Resolves Arrow's Impossibility Theorem by mapping the Apostles' multi-agent utility functions to a stable cooperative Nash Equilibrium core:
     $$\mathcal{C}(\mathcal{G}) = \left\{ G_{\text{cand}} \in \mathcal{G} \;\middle|\; \sum_{j=1}^{13} V_j(G_{\text{cand}}) = 0 \text{ and } \nexists G' \in \mathcal{G} \text{ s.t. } \forall j, \mathbf{U}_j(G') \ge \mathbf{U}_j(G_{\text{cand}}) \right\}$$
-*   **The Mutational Cushioning Theorem**: Evolved non-coding structures (pseudogenes and spandrels) function as introns, absorbing random point mutations $\lambda = Np$ to mathematically protect active exons from syntactic collapse:
+*   **The Mutational Cushioning Theorem**: Evolved non-coding structures (pseudogenes and spandrels) function as introns, absorbing syntactic noise under a **fixed global mutation budget $\lambda$** to mathematically protect active exons from syntactic collapse:
     $$P(\mathcal{D}_{\text{collapse}}) = 1 - e^{-\lambda(1 - \alpha)} \quad \left(\text{where } \frac{d}{d\alpha} P(\mathcal{D}_{\text{collapse}}) < 0 \right)$$
 *   **Continuous-Time Replicator Sweep**: The sieved `04` lineage colonized **$96.7\%$ ($310/321$)** of the ecosystem, showing a classic selective sweep driven by time-guard selection pressure:
     $$x_i(t) = \frac{x_i(0) e^{s_i t}}{\sum_k x_k(0) e^{s_k t}} \xrightarrow{t \to \infty} 1$$

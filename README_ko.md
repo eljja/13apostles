@@ -52,7 +52,7 @@ flowchart TD
     $$\sum_{G_{\text{cand}} \in \mathcal{L}} P(G_{\text{cand}} \mid G, a_j, \mathcal{C}) \ge 1 - \delta \quad (\delta < 10^{-3})$$
 *   **파레토 거부 사회 합의 투표**: 사도들의 다차원 인지 편향과 한계 임계 효용을 안정적인 협력 게임 내시 균형 코어로 투사하여, 민주 투표의 고질적 한계인 아로우의 불가능성 정리를 돌파합니다:
     $$\mathcal{C}(\mathcal{G}) = \left\{ G_{\text{cand}} \in \mathcal{G} \;\middle|\; \sum_{j=1}^{13} V_j(G_{\text{cand}}) = 0 \text{ and } \nexists G' \in \mathcal{G} \text{ s.t. } \forall j, \mathbf{U}_j(G') \ge \mathbf{U}_j(G_{\text{cand}}) \right\}$$
-*   **돌연변이 완충 정리의 입증**: 진화된 비코딩 구문 구조(가성 유전자 및 스팬드럴)가 유효 코딩 영역(Exons)을 방어하는 완충 차폐막으로 작용하여 구문적 치사 변이를 수학적으로 반감시킵니다:
+*   **돌연변이 완충 정리의 입증**: 진화된 비코딩 구문 구조(가성 유전자 및 스팬드럴)가 **고정된 전역 변이 예산 $\lambda$ 하에** 유효 코딩 영역(Exons)을 방어하는 완충 차폐막으로 작용하여 구문적 치사 변이를 수학적으로 방어합니다:
     $$P(\mathcal{D}_{\text{collapse}}) = 1 - e^{-\lambda(1 - \alpha)} \quad \left(\text{where } \frac{d}{d\alpha} P(\mathcal{D}_{\text{collapse}}) < 0 \right)$$
 *   **연속 시간 복제자 계통 Sweep**: 강력한 5초 시간 제한 선택 압력 하에 소수 체 가드를 최초 장착한 `04` 계통이 전체 생태계의 **96.7%(310/321)**를 지배하는 유전적 휩쓸기 및 고착화 실현:
     $$x_i(t) = \frac{x_i(0) e^{s_i t}}{\sum_k x_k(0) e^{s_k t}} \xrightarrow{t \to \infty} 1$$

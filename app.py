@@ -180,6 +180,52 @@ hr { border-color: rgba(99,102,241,0.12) !important; margin: 12px 0 !important; 
     font-size: 0.7em; margin-top: 24px; padding: 10px 0;
     border-top: 1px solid rgba(99,102,241,0.1);
 }
+
+/* ─── Enforce Dark Theme via CSS Variables on Base Streamlit Components (No toml required) ─── */
+:root, [data-testid="stAppViewContainer"], html, body, .stApp {
+    --theme-background-color: #0d1117 !important;
+    --theme-secondary-background-color: #1e1e3a !important;
+    --theme-text-color: #e2e2f0 !important;
+    --theme-primary-color: #6366f1 !important;
+    
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+}
+div[data-baseweb="select"] > div {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+    border-color: rgba(99, 102, 241, 0.25) !important;
+}
+div[data-baseweb="popover"], div[data-baseweb="menu"] {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+    border: 1px solid rgba(99, 102, 241, 0.25) !important;
+}
+ul[role="listbox"] {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+    border: 1px solid rgba(99, 102, 241, 0.25) !important;
+}
+li[role="option"] {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+}
+li[role="option"]:hover {
+    background-color: rgba(99, 102, 241, 0.15) !important;
+    color: #ffffff !important;
+}
+div[data-testid="stThumb"] {
+    background-color: #6366f1 !important;
+    border: 2px solid #ffffff !important;
+}
+div[data-testid="stTickBar"] {
+    color: rgba(160, 160, 220, 0.4) !important;
+}
+input[type="text"], input[type="number"], textarea, [data-baseweb="input"] input {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+    border: 1px solid rgba(99, 102, 241, 0.2) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -730,10 +776,35 @@ if roots:
     if ints:
         next_root_id = str(max(ints) + 1)
 
+# ─── Git Commit & Version Helper ─────────────────────────────────────────────
+def get_version_info() -> tuple[str, str]:
+    version = "v1.3.0"
+    commit_hash = "7a47a0f"
+    if "pyodide" not in sys.modules:
+        try:
+            import subprocess
+            res = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout.strip():
+                commit_hash = res.stdout.strip()
+        except Exception:
+            pass
+    return version, commit_hash
+
 # ─── Header ─────────────────────────────────────────────────────────────────
 h1, h2, h3, h4, h5 = st.columns([5, 1, 1, 1, 1])
 with h1:
-    st.markdown('<div style="display: flex; align-items: baseline;"><span class="main-title">🧬 13 Apostles System</span><span class="author-email">eljja1@gmail.com</span></div>', unsafe_allow_html=True)
+    version, commit_hash = get_version_info()
+    st.markdown(
+        f'<div style="display: flex; align-items: center; gap: 16px;">'
+        f'  <span class="main-title">🧬 13 Apostles System</span>'
+        f'  <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; margin-top: 4px;">'
+        f'    <span class="author-email" style="margin-left: 0; font-size: 0.82em; color: rgba(160,160,220,0.6); line-height: 1.2;">eljja1@gmail.com</span>'
+        f'    <span style="font-size: 0.72em; font-weight: 600; color: #a5b4fc; background: rgba(99,102,241,0.15); padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(99,102,241,0.25); letter-spacing: 0.02em; margin-top: 3px; line-height: 1.2; white-space: nowrap;">{version}</span>'
+        f'    <span style="font-size: 0.68em; font-weight: 600; color: rgba(165,180,252,0.8); background: rgba(99,102,241,0.08); padding: 1.5px 6px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.15); letter-spacing: 0.02em; margin-top: 2px; line-height: 1.2; white-space: nowrap;">({commit_hash})</span>'
+        f'  </div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 with h2:
     font_size = st.slider("Font Size", 4, 20, 7)
     root_font_size = font_size + 2
