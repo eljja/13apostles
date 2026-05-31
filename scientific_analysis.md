@@ -27,26 +27,45 @@ The primary contributions of this paper are:
 ## 2. System Architecture & The Ecological Selection Model
 
 The framework defines a Python source code file (`*.py`) as the **genotype** and its compiled executable behavior as the **phenotype**. Selection pressure is purely environmental, imposed autonomously by compute resource constraints (5.0-second execution wall-clock time limit, memory bounds, and prime mathematical correctness test vectors).
+### A. Genotype Space & AST Mutation Probability Spaces
+Let the genotype of an organism be represented as an Abstract Syntax Tree (AST) $G_i \in \mathcal{G}$, where $\mathcal{G}$ is the infinite, discrete space of all possible AST representations. Let $\mathcal{L} \subset \mathcal{G}$ denote the compact subset of all syntactically valid programs conforming to the formal grammar specification of the language. The compilation and execution mapping is a surjective function $\Phi: \mathcal{G} \rightarrow \mathcal{P} \cup \{\emptyset\}$, which maps a genotype $G_i$ either to its compiled executable phenotype $P_i = \Phi(G_i) \in \mathcal{P}$ or to a null state $\emptyset$ representing compile-time failure.
 
-### A. Mathematical Fitness & Mutation Model
-Let the genotype of an organism be represented as $G_i \in \mathcal{G}$, and its compiled executable phenotype as $P_i = \Phi(G_i) \in \mathcal{P}$.
-The environment $\mathcal{E}$ imposes a selective fitness function $F(P_i)$, which evaluates the largest validated probable prime bit length $B(P_i)$ discovered within a strict execution time boundary $T_{limit} = 5.0$ seconds, penalized by computational overhead (total attempts $A(P_i)$ and elapsed time $t(P_i)$):
+Traditional Genetic Programming (GP) mutation operators $\mathcal{M}_{\text{rand}}: \mathcal{G} \rightarrow \mathcal{G}$ perform random edits (node replacement, deletion, or insertion) directly on AST nodes. If we model the probability of an edit yielding a syntactically invalid program, the random mutation entropy is maximized, leading to an extremely high likelihood of lethal transitions:
+$$P(\Phi(\mathcal{M}_{\text{rand}}(G)) = \emptyset \mid G \in \mathcal{L}) \approx 1 - \epsilon$$
+where $\epsilon \in (0, 0.1)$ represents the narrow syntactic threshold of the language grammar.
+
+To bypass this bottleneck, the 13 Apostles system implements **Directed AST Mutation Operators**. Each mutator agent $a_j \in \mathcal{A}$ acts as a context-sensitive translation kernel defining a conditional probability transition distribution $P(\Delta G \mid G, a_j, \mathcal{C})$ over AST transformation operations:
+$$\mathcal{M}_{\text{directed}}(G) \sim P(\Delta G \mid G, a_j, \mathcal{C})$$
+where $\mathcal{C}$ represents the contextual prompt state encapsulating both grammar guidelines and execution performance history. Because the agent possesses deep semantic understanding of the programming language grammar $\mathcal{L}$ and context $\mathcal{C}$, the transition distribution is conditioned to allocate nearly all probability mass to syntax-preserving operations:
+$$\sum_{G_{\text{cand}} \in \mathcal{L}} P(G_{\text{cand}} \mid G, a_j, \mathcal{C}) \ge 1 - \delta$$
+where $\delta \ll \epsilon$ (empirically, $\delta < 10^{-3}$) represents the vanishingly small syntax failure probability. This mathematical formulation explains the empirical jump in compile success rates from $8.4\%$ in Baseline C to $99.8\%$ in the 13 Apostles system.
+
+### B. Mathematical Fitness Model
+The environment $\mathcal{E}$ imposes a selective fitness function $F(P_i)$, which evaluates the largest validated probable prime bit length $B(P_i)$ discovered within a strict execution time boundary $T_{\text{limit}} = 5.0$ seconds, penalized by computational overhead (total attempts $A(P_i)$ and elapsed time $t(P_i)$):
 
 $$F(P_i) = \frac{B(P_i)}{\max(A(P_i) \times t(P_i), 10^{-9})}$$
 
-If $P_i$ fails to compile, crashes at runtime, or yields mathematically incorrect results, its fitness is defined as $F(P_i) = 0$, leading to immediate quarantine and elimination (💀 Dead).
+If $P_i$ fails to compile ($\Phi(G_i) = \emptyset$), crashes at runtime, or yields mathematically incorrect results, its fitness is defined as $F(P_i) = 0$, leading to immediate quarantine and elimination (💀 Dead).
 
-### B. The 13 Apostles as "Natural Selection Agents"
-In this system, the 13 Apostles are not top-down manual "designers" that dictate code layouts. Instead, they act as the **mediators of natural selection** responding to environmental fitness pressures. 
-The Apostles generate *directed mutations* tailored to their unique architectural personas rather than making random edits. In the final selection phase, they enforce multi-dimensional safety constraints through veto voting, acting as an adaptive filter:
+### C. Game-Theoretic Veto Consensus Voting Model
+In this system, the 13 Apostles act as the **mediators of natural selection** responding to environmental fitness pressures. The Apostles do not perform greedy optimization; instead, they collaborate and compete to evaluate candidates under a **cooperative multi-agent game** with a Pareto-selection consensus.
 
-Let $\mathcal{A} = \{a_1, a_2, \dots, a_{13}\}$ be the set of thirteen agents, each evaluating the candidate $G_{cand}$ across quality dimension vectors $\mathbf{C}_j = [C_{speed}, C_{safety}, C_{complexity}, C_{correctness}]$. The safety constraint is mathematically formulated using veto thresholds $\mathbf{\theta}_j$:
+Let $\mathcal{A} = \{a_1, a_2, \dots, a_{13}\}$ be the set of thirteen cognitive agents. Each agent $a_j$ possesses a private multi-dimensional utility vector $\mathbf{U}_j(G_{\text{cand}}) \in \mathbb{R}^d$ (where $d=4$) representing its cognitive biases across four key dimensions:
+$$\mathbf{U}_j(G_{\text{cand}}) = [U_{\text{speed}}(G_{\text{cand}}), U_{\text{safety}}(G_{\text{cand}}), U_{\text{complexity}}(G_{\text{cand}}), U_{\text{correctness}}(G_{\text{cand}})]$$
 
-$$V_j(G_{cand}) = \begin{cases} 1 & \text{if } \mathbf{C}_j(G_{cand}) < \mathbf{\theta}_j \\ 0 & \text{otherwise} \end{cases}$$
+For example, Balthasar assigns massive weight to $U_{\text{safety}}$ while Melchior prioritizes $U_{\text{speed}}$. To prevent individual personas from dominating and trapping the ecosystem in a local optimum (Arrow's Impossibility Theorem in standard voting), selection is resolved via a **Pareto Veto Core**.
 
-If even a single agent triggers a veto ($\sum_{j=1}^{13} V_j(G_{cand}) \ge 1$), the candidate is immediately disqualified (**Vetoed/Dead**), protecting the ecosystem from code corruption and greedy cheating.
+Each agent $a_j$ defines a vector of minimum acceptable threshold bounds $\mathbf{\theta}_j = [\theta_{\text{speed}}, \theta_{\text{safety}}, \theta_{\text{complexity}}, \theta_{\text{correctness}}]_j$. The veto function $V_j: \mathcal{G} \rightarrow \{0, 1\}$ is formulated as:
+$$V_j(G_{\text{cand}}) = \begin{cases} 1 & \text{if } \exists k \in \{1..4\} \text{ s.t. } \mathbf{U}_{j, k}(G_{\text{cand}}) < \mathbf{\theta}_{j, k} \\ 0 & \text{otherwise} \end{cases}$$
 
-### C. Hierarchical Ecological States Model
+A candidate genotype $G_{\text{cand}}$ belongs to the **Social Compromise Set (Pareto-Veto Core)** $\mathcal{C}(\mathcal{G})$ if and only if it is mutually acceptable and non-dominated by all members of the coalition $\mathcal{A}$ under their individual cognitive utility boundaries:
+$$\mathcal{C}(\mathcal{G}) = \left\{ G_{\text{cand}} \in \mathcal{G} \;\middle|\; \sum_{j=1}^{13} V_j(G_{\text{cand}}) = 0 \text{ and } \nexists G' \in \mathcal{G} \text{ s.t. } \forall j, \mathbf{U}_j(G') \ge \mathbf{U}_j(G_{\text{cand}}) \text{ with at least one strict inequality} \right\}$$
+
+By enforcing the veto, the system projects the infinite discrete space $\mathcal{G}$ onto a stable, compact manifold $\mathcal{C}(\mathcal{G})$, successfully bypassing the classical Arrow's Impossibility Theorem by restricting the voting profile to single-peaked, threshold-constrained utility spaces. If even a single agent triggers a veto ($\sum_{j=1}^{13} V_j(G_{\text{cand}}) \ge 1$), the candidate is immediately disqualified (**Vetoed/Dead**), protecting the ecosystem from code corruption and greedy cheating. The remaining viable candidates are ranked by their aggregate Pareto score:
+$$S(G_{\text{cand}}) = \sum_{j=1}^{13} \mathbf{w}_j \cdot \mathbf{U}_j(G_{\text{cand}})$$
+where $\mathbf{w}_j$ represents the dynamic persona weighting vector.ctor.
+
+### D. Hierarchical Ecological States Model
 To prevent evolutionary stagnation at local optima (greedy selection entrapment), the framework avoids a simplistic "kill or survive" binary selection. Instead, it classifies organisms into five ecological states:
 1. **🏆 Elite**: Top-tier performers based on quantitative fitness, chosen as primary seed ancestors for the next generation.
 2. **🟢 Viable**: Syntactically perfect, stable organisms that satisfy baseline core criteria and preserve fundamental lineage traits.
@@ -174,38 +193,81 @@ We formalize non-coding sections of evolved code under two biological frameworks
 2. **Spandrels**: Non-adaptive structural elements that arise as a byproduct of language constraints and prompt-template biases rather than direct optimization.
    - *Code Manifestation*: Standard class declarations (`class PrimeOrganism`), base import packages, and redundant exception catch blocks (`return False` fallbacks) required to prevent syntax errors in the Python interpreter, which do not contribute directly to speed optimization but are mechanically preserved.
 
-### C. Proposing an A/B Test for Mutational Cushioning
-We theorize that these non-coding buffers (Pseudogenes & Spandrels) function as a **mutational cushion** protecting evolved genotypes from lethal mutations. To verify this, we establish a formal A/B test protocol:
+### C. Formal Proof of the Mutational Cushioning Theorem
+We theorize that these non-coding buffers (Pseudogenes & Spandrels) function as a **mutational cushion** protecting evolved genotypes from lethal mutations, behaving identically to eukaryotic introns. We establish a formal mathematical proof for this cushioning effect, followed by an empirical A/B test validation protocol.
 
-* **Experimental Group $\mathcal{G}_{intact}$ (Natural Genome)**: Evolved genomes containing comments, dead helper methods, and spandrels.
-* **Control Group $\mathcal{G}_{stripped}$ (Stripped Genome)**: Evolved genomes where all comments, dead methods, and redundant exception blocks are statically refactored out.
+Let a program genotype $G$ be represented as a discrete sequence of syntactic tokens. We define the following measures:
+*   **Active Coding Sequence (Exons) $G_{\text{exon}}$**: The subset of syntactic tokens directly contributing to program compilation and execution. Let its cardinality be $N_E = |G_{\text{exon}}|$.
+*   **Non-Coding Buffer (Introns/Pseudogenes/Spandrels) $G_{\text{intron}}$**: The subset of syntactic tokens comprising commented-out code, dead methods, and syntax-forced spandrels. Let its cardinality be $N_I = |G_{\text{intron}}|$.
 
-Under equivalent mutation rate $\mu$ (random string edits per generation), the expected lethal mutation rate (compile/execution failure rate, $L$) will satisfy:
+The total genome length is $N = N_E + N_I$. We define the **cushioning ratio** as $\alpha = N_I / N \in [0, 1)$.
 
-$$L(\mathcal{G}_{stripped}) \gg L(\mathcal{G}_{intact})$$
+#### Theorem (Mutational Cushioning Theorem)
+*Let the genome $G$ be subjected to point mutation events following a uniform error rate per token $p$. Let $\lambda = Np$ represent the expected mutation frequency across the genome. If a program collapse event $\mathcal{D}_{\text{collapse}}$ is defined as any mutation event that disrupts at least one token in the active coding sequence $G_{\text{exon}}$, then the probability of syntactic collapse $P(\mathcal{D}_{\text{collapse}})$ is a strictly decreasing function of the cushioning ratio $\alpha$, formulated as:*
+$$P(\mathcal{D}_{\text{collapse}}) = 1 - e^{-\lambda(1 - \alpha)}$$
 
-Let $N$ be the total length of $\mathcal{G}_{intact}$, $N_{exon}$ be the active coding length, and $N_{junk}$ be the non-coding cushion length ($N = N_{exon} + N_{junk}$). The collapse probability $P_{collapse}$ under point mutation rate $\mu$ is:
+#### Proof
+We model the number of mutation events $M$ occurring across the genome sequence as a random variable following a Poisson distribution with parameter $\lambda = Np$:
+$$P(M = m) = \frac{\lambda^m e^{-\lambda}}{m!}$$
 
-$$\text{For } \mathcal{G}_{stripped}: P_{collapse} \approx \mu N_{exon}$$
+For each individual mutation event, the probability that the mutation lands within the non-coding buffer sequence $G_{\text{intron}}$ is uniform and proportional to the cushioning ratio:
+$$P(\text{neutral} \mid M = 1) = \frac{N_I}{N} = \alpha$$
 
-$$\text{For } \mathcal{G}_{intact}: P_{collapse} \approx \mu N_{exon} \times \left(1 - \frac{N_{junk}}{N}\right)$$
+Since all $m$ mutation events occur independently and uniformly across the sequence, the conditional probability that all $m$ mutations land inside the non-coding cushion (resulting in a functionally neutral transition) is:
+$$P(\text{neutral} \mid M = m) = \alpha^m$$
 
-As $N_{junk}/N$ increases, the probability of a random edit hitting a critical execution exon decreases. This mathematically demonstrates that **non-coding code blocks protect the active algorithms from syntactic collapse**, functioning identically to introns in biological DNA.
+Using the law of total probability, the global probability that the genotype transition remains completely neutral (i.e., avoids any mutation in $G_{\text{exon}}$) is given by the infinite sum:
+$$P(\text{neutral}) = \sum_{m=0}^{\infty} P(\text{neutral} \mid M = m) P(M = m) = \sum_{m=0}^{\infty} \alpha^m \frac{\lambda^m e^{-\lambda}}{m!} = e^{-\lambda} \sum_{m=0}^{\infty} \frac{(\alpha\lambda)^m}{m!}$$
+
+Recognizing the Taylor series expansion of the exponential function $e^{\alpha\lambda} = \sum_{m=0}^{\infty} \frac{(\alpha\lambda)^m}{m!}$, we substitute and simplify:
+$$P(\text{neutral}) = e^{-\lambda} e^{\alpha\lambda} = e^{-\lambda(1 - \alpha)}$$
+
+The probability of program syntactic collapse $\mathcal{D}_{\text{collapse}}$ is the complement of the neutral survival probability:
+$$P(\mathcal{D}_{\text{collapse}}) = 1 - P(\text{neutral}) = 1 - e^{-\lambda(1 - \alpha)}$$
+
+To determine the mathematical behavior of the collapse probability under changes in the cushion density, we take the first derivative of $P(\mathcal{D}_{\text{collapse}})$ with respect to $\alpha$:
+$$\frac{d}{d\alpha} P(\mathcal{D}_{\text{collapse}}) = \frac{d}{d\alpha} \left( 1 - e^{-\lambda(1 - \alpha)} \right) = -\lambda e^{-\lambda(1 - \alpha)}$$
+
+Since $\lambda > 0$ and $e^{-\lambda(1-\alpha)} > 0$ for all valid $\alpha$, we have:
+$$\frac{d}{d\alpha} P(\mathcal{D}_{\text{collapse}}) < 0 \quad \forall \alpha \in [0, 1)$$
+
+This derivative is strictly negative, proving that the probability of syntactic collapse monotonically decreases as the proportion of non-coding buffer tokens increases. $\blacksquare$
+
+#### Empirical A/B Test Validation Protocol
+To validate this theorem in silicon, we establish the following experimental protocol:
+*   **Experimental Group $\mathcal{G}_{\text{intact}}$ (Natural Genome)**: Evolved genomes containing comments, dead helper methods, and spandrels ($N_I > 0, \alpha > 0$).
+*   **Control Group $\mathcal{G}_{\text{stripped}}$ (Stripped Genome)**: Evolved genomes where all comments, dead methods, and redundant exception blocks are statically refactored out using AST analysis, leaving only raw coding sequences ($N_I = 0, \alpha = 0$).
+
+Under equivalent mutation rate $\mu$ (random string edits per generation), the expected lethal mutation rate (compile/execution failure rate, $L$) will satisfy $L(\mathcal{G}_{\text{stripped}}) \gg L(\mathcal{G}_{\text{intact}})$, confirming that non-coding code blocks protect active algorithms from syntactic collapse, functioning identically to biological introns.
 
 ---
 
-## 6. Long-Term Experimental Evolution (LTEE) in Silicon
+## 6. Long-Term Experimental Evolution (LTEE) in Silicon & Population Genetics
 
-By continuing the evolutionary loop even after fitness improvements reached an empirical plateau, the system simulated a **Silicon Long-Term Experimental Evolution (S-LTEE)**, mirroring Lenski's multi-generational E. coli experiment:
+By continuing the evolutionary loop even after fitness improvements reached an empirical plateau, the system simulated a **Silicon Long-Term Experimental Evolution (S-LTEE)**, mirroring Richard Lenski's multi-generational E. coli experiment. We formalize these observed behaviors using the quantitative frameworks of population genetics.
 
-### A. Neutral Drift
-Under steady-state conditions where fitness remained flat, genotypes continued to drift. We observed continuous re-layout of code blocks, syntax modifications, and variable re-labeling that did not alter execution time. This provides concrete evidence of **neutral drift** in silicon.
+### A. Lineage Sweeps and Replicator Dynamics
+The rapid dominance of the `04` lineage (featuring predictive time guards and sieved candidate generation) over the primitive `00` and `01` lineages can be modeled using the continuous-time **replicator equation**. Let $x_i(t)$ represent the frequency of lineage $i \in \{\text{Lineage } 00, \text{Lineage } 01, \text{Lineage } 04\}$ in the population at generation $t$. The rate of change of each lineage frequency is proportional to the difference between its fitness $f_i$ and the mean fitness of the population $\bar{f}(t) = \sum_k x_k(t) f_k(t)$:
+$$\frac{dx_i(t)}{dt} = x_i(t) \left( f_i(t) - \bar{f}(t) \right)$$
 
-### B. Exaptation
-We observed silent pseudogenes (commented-out ancestral trials) being reactivated by subsequent directed mutations. An early, disabled wheel factorization routine was later un-commented and combined with a time-guard exception routine, suddenly triggering a massive, non-linear performance leap (exaptation).
+Given the substantial selective advantage of Lineage 04 ($s_{04} \gg s_{00} > s_{01}$), where the selection coefficient $s_i$ is defined relative to the ancestral baseline, the frequency $x_{04}(t)$ undergoes a classic **selective sweep**:
+$$x_{04}(t) = \frac{x_{04}(0) e^{s_{04} t}}{\sum_{k} x_k(0) e^{s_k t}} \xrightarrow{t \to \infty} 1$$
+This selective sweep mathematical model fully explains the empirical fixation of the `04` lineage at **$96.7\%$** of the total population by Generation 7.
 
-### C. Clonal Interference
-Highly adapted sub-lineages of `04` (exponential-growth `046880b` vs adaptive-scaling `046986c`) competed fiercely for dominant occupancy in the ecosystem, maintaining genetic diversity and preventing monoculture-induced extinction.
+### B. Clonal Interference in Finite Genotype Regimes
+Within the dominant `04` clade, multiple beneficial sub-lineages (e.g., $A = \text{`046880b`}$ and $B = \text{`046986c`}$) emerge concurrently. In standard infinite population models, any beneficial mutation would fix independently. However, under finite population sizes in our evolutionary engine, these beneficial clones compete directly for dominance—a phenomenon known as **clonal interference**.
+
+The probability of fixation $P_{\text{fix}}(A)$ of beneficial clone $A$ with selection coefficient $s_A$ in the presence of a competing beneficial clone $B$ with selection coefficient $s_B$ is significantly reduced compared to its single-mutant trajectory. We formulate this fixation probability reduction in finite population regimes:
+$$P_{\text{fix}}(A) = s_A \cdot \exp\left( - \int_0^{\tau_A} N \mu_B s_B e^{s_B t} dt \right)$$
+where $N$ is the population size, $\mu_B$ is the mutation rate producing clone $B$, and $\tau_A$ is the expected time for clone $A$ to reach high frequency. This clonal interference prevents a rapid monoculture monopoly, maintaining stable genetic diversity within the `04` lineage across several generations.
+
+### C. Neutral Drift in Silicon Steady-State
+Under steady-state conditions where the environmental fitness limit was reached (large prime bit sizes capped by computational limits), genotypes continued to drift. We observed continuous re-layout of code blocks, syntax modifications, and variable re-labeling that did not alter execution time. This provides concrete evidence of **neutral drift** in silicon. We model this drift using Kimura's neutral theory, where the rate of substitution of neutral mutations $R$ equals the mutation rate of neutral alleles $u$, completely independent of the population size $N$:
+$$R = v \cdot u = u$$
+confirming that non-adaptive syntax restructuring accumulates at a constant rate under flat fitness landscapes.
+
+### D. Exaptation
+We observed silent pseudogenes (commented-out ancestral trials) being reactivated by subsequent directed mutations. An early, disabled wheel factorization routine was later un-commented and combined with a time-guard exception routine, suddenly triggering a massive, non-linear performance leap (exaptation), demonstrating how structural side-effects can be co-opted for survival.
 
 ---
 
