@@ -167,7 +167,12 @@ def load_objective(workspace_dir: str, root_basename: str) -> str | None:
         from pyodide.http import open_url
         import time
         try:
-            url = f"./{root_basename}.objective.md?v={int(time.time())}"
+            try:
+                import base_url_config
+                base = base_url_config.BASE_URL
+            except Exception:
+                base = "https://eljja.github.io/13apostles/"
+            url = f"{base}{root_basename}.objective.md?v={int(time.time())}"
             return open_url(url).read()
         except Exception:
             return None
@@ -186,7 +191,12 @@ def load_decision_log(workspace_dir: str, basename: str) -> str | None:
         from pyodide.http import open_url
         import time
         try:
-            url = f"./{basename}.md?v={int(time.time())}"
+            try:
+                import base_url_config
+                base = base_url_config.BASE_URL
+            except Exception:
+                base = "https://eljja.github.io/13apostles/"
+            url = f"{base}{basename}.md?v={int(time.time())}"
             return open_url(url).read()
         except Exception:
             pass
@@ -207,7 +217,12 @@ def load_decision_log(workspace_dir: str, basename: str) -> str | None:
             from pyodide.http import open_url
             import time
             try:
-                url = f"./{ancestor}.md?v={int(time.time())}"
+                try:
+                    import base_url_config
+                    base = base_url_config.BASE_URL
+                except Exception:
+                    base = "https://eljja.github.io/13apostles/"
+                url = f"{base}{ancestor}.md?v={int(time.time())}"
                 content = open_url(url).read()
             except Exception:
                 pass
@@ -265,7 +280,12 @@ def load_code(workspace_dir: str, basename: str) -> str | None:
         from pyodide.http import open_url
         import time
         try:
-            url = f"./{basename}.py?v={int(time.time())}"
+            try:
+                import base_url_config
+                base = base_url_config.BASE_URL
+            except Exception:
+                base = "https://eljja.github.io/13apostles/"
+            url = f"{base}{basename}.py?v={int(time.time())}"
             return open_url(url).read()
         except Exception as e:
             print(f"[stlite-patch] Failed to fetch {basename}.py over HTTP: {e}")

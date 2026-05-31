@@ -192,10 +192,13 @@
       observer.observe(document.body, { childList: true, subtree: true });
 
       const buster = new Date().getTime();
+      const baseUrl = window.location.href.split('?')[0].split('#')[0].replace(/\/?$/, '/');
       stlite.mount({
-        requirements: [], // Zero third-party requirements (Only standard library + Streamlit core)!
+        requirements: ["toml"],
         entrypoint: "app.py",
         files: {
+          ".streamlit/config.toml": `[theme]\nbase="dark"\nprimaryColor="#6366f1"\nbackgroundColor="#0d1117"\nsecondaryBackgroundColor="#1e1e3a"\ntextColor="#e2e2f0"\n`,
+          "base_url_config.py": `BASE_URL = "${baseUrl}"\n`,
           "app.py": {
             url: `./app.py?v=${buster}`
           },
