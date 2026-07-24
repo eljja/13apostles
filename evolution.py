@@ -245,10 +245,17 @@ Output ONLY valid JSON in the following format (no markdown, just raw JSON):
             for retry in range(JSON_PARSE_MAX_RETRIES + 1):
                 try:
                     response, _ = self.llm.generate_content(prompt)
-                    response = response.replace("```json", "").replace("```", "").strip()
-                    # Try to extract JSON array from response if it contains extra text
-                    json_match = re.search(r'\[.*\]', response, re.DOTALL)
-                    json_str = json_match.group(0) if json_match else response
+                    # Aggressively clean up markdown and extra text
+                    clean_res = re.sub(r'```(?:json)?', '', response).replace('```', '').strip()
+                    # Find the outermost array brackets
+                    start_idx = clean_res.find('[')
+                    end_idx = clean_res.rfind(']')
+                    
+                    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                        json_str = clean_res[start_idx:end_idx+1]
+                    else:
+                        json_str = clean_res
+                        
                     vote_json = json.loads(json_str)
                     votes_data[apostle['name']] = vote_json
                     parsed = True

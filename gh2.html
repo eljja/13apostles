@@ -4,51 +4,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>13 Apostles - Autonomous Multi-Agent Code Evolution Dashboard</title>
-    <meta
-      name="description"
-      content="13 Apostles is a browser-based WebAssembly dashboard for exploring an autonomous LLM-driven software evolution framework, phylogenetic code trees, mutation logs, and evolutionary diversity analysis."
-    />
-    <meta
-      name="keywords"
-      content="13 Apostles, autonomous code evolution, LLM agents, genetic programming, software evolution, WebAssembly dashboard, evolutionary computation"
-    />
-    <meta name="author" content="eljja" />
-    <meta name="robots" content="index, follow" />
-    <meta name="google-site-verification" content="tQU4ms4HtuSSnlNO14YJO8OMyy59mqlFixqXl3Lhlbw" />
-    <link rel="canonical" href="https://eljja.github.io/13apostles/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://eljja.github.io/13apostles/" />
-    <meta property="og:title" content="13 Apostles - Autonomous Multi-Agent Code Evolution Dashboard" />
-    <meta
-      property="og:description"
-      content="Explore a 321-node phylogenetic software evolution experiment driven by 13 LLM agent personas, mutation logs, and WebAssembly-powered in-browser analysis."
-    />
-    <meta property="og:site_name" content="13 Apostles" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="13 Apostles - Autonomous Multi-Agent Code Evolution Dashboard" />
-    <meta
-      name="twitter:description"
-      content="A WebAssembly dashboard for autonomous LLM-driven code evolution, lineage trees, and diversity analysis."
-    />
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "13 Apostles",
-        "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "Web browser",
-        "url": "https://eljja.github.io/13apostles/",
-        "codeRepository": "https://github.com/eljja/13apostles",
-        "description": "A browser-based WebAssembly dashboard for an autonomous LLM-driven software evolution framework using 13 cognitive agent personas, phylogenetic code trees, mutation logs, and evolutionary diversity analysis.",
-        "author": {
-          "@type": "Person",
-          "name": "eljja"
-        },
-        "isAccessibleForFree": true,
-        "programmingLanguage": ["Python", "JavaScript", "HTML"]
-      }
-    </script>
+    <title>🧬 13 Apostles Dashboard — WebAssembly in Browser</title>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@stlite/mountable@0.58.0/build/stlite.css"
@@ -236,15 +192,17 @@
       observer.observe(document.body, { childList: true, subtree: true });
 
       const buster = new Date().getTime();
-      const baseUrl = window.location.href.split('?')[0].split('#')[0].replace(/\/?$/, '/');
       stlite.mount({
-        requirements: ["toml"],
+        requirements: [], // Zero third-party requirements (Only standard library + Streamlit core)!
         entrypoint: "app.py",
+        streamlitConfig: {
+          "theme.base": "dark",
+          "theme.primaryColor": "#6366f1",
+          "theme.backgroundColor": "#0d1117",
+          "theme.secondaryBackgroundColor": "#1e1e3a",
+          "theme.textColor": "#e2e2f0"
+        },
         files: {
-          ".streamlit/config.toml": `[theme]\nbase="dark"\nprimaryColor="#6366f1"\nbackgroundColor="#0d1117"\nsecondaryBackgroundColor="#1e1e3a"\ntextColor="#e2e2f0"\n`,
-          "base_url_config.py": `BASE_URL = "${baseUrl}"\n`,
-          "style.css": { url: `./style.css?v=${buster}` },
-          "utils.py": { url: `./utils.py?v=${buster}` },
           "app.py": {
             url: `./app.py?v=${buster}`
           },

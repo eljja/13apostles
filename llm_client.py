@@ -34,7 +34,7 @@ class LLMClient:
         self.api_key = api_key
         self.models = models
 
-    def generate_content(self, prompt, max_retries=2, timeout=30):
+    def generate_content(self, prompt, max_retries=4, timeout=30):
         headers = {
             "Content-Type": "application/json"
         }
@@ -63,13 +63,13 @@ class LLMClient:
                 except urllib.error.HTTPError as e:
                     print(f"[{model}] HTTP Error {e.code}: {e.reason}")
                     if e.code in [429, 500, 503]: # Rate limit or server error, wait and retry
-                        time.sleep(2 ** attempt)
+                        time.sleep(3 ** attempt)
                         continue
                     else:
                         break # Break out of retry loop for this model on 4xx errors
                 except urllib.error.URLError as e:
                     print(f"[{model}] URL/Network Error: {str(e.reason)}")
-                    time.sleep(2 ** attempt)
+                    time.sleep(3 ** attempt)
                     continue
                 except Exception as e:
                     print(f"[{model}] Exception: {str(e)}")

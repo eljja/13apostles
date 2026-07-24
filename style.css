@@ -1,0 +1,221 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
+* { font-family: 'Inter', sans-serif; }
+code, pre, .stCode { font-family: 'JetBrains Mono', monospace !important; }
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(160deg, #07071a 0%, #0d1117 50%, #0a0f2a 100%);
+}
+[data-testid="stHeader"] { background: transparent; }
+[data-testid="stSidebar"] { display: none !important; }
+.main-title {
+    font-size: 3.2em; font-weight: 800;
+    background: linear-gradient(135deg, #6366f1, #a78bfa, #ec4899);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin: 0;
+    line-height: 1.2;
+}
+.author-email {
+    font-size: 0.8em; font-weight: 500;
+    color: rgba(160,160,220,0.6);
+    margin-left: 12px;
+}
+.section-label {
+    font-size: 0.68em; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: rgba(160,160,220,0.4);
+    margin: 10px 0 4px 0;
+}
+.badge {
+    display: inline-block; padding: 2px 7px; border-radius: 14px;
+    font-size: 0.7em; font-weight: 600; margin-right: 3px;
+}
+.badge-i { background: rgba(99,102,241,0.18); color: #a5b4fc; }
+.badge-g { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+.stButton > button {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    color: white !important; border: none !important;
+    border-radius: 7px !important; font-weight: 600 !important;
+    font-size: 0.8em !important; padding: 6px 12px !important;
+    transition: all 0.2s ease !important;
+}
+.stButton > button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 5px 16px rgba(99,102,241,0.4) !important;
+}
+.stSelectbox label, .stSlider label, .stCheckbox label {
+    font-size: 0.76em !important;
+}
+[data-baseweb="select"] { font-size: 0.8em !important; min-height: 30px !important; }
+/* Dark mode code blocks */
+[data-testid="stCodeBlock"] pre {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+    border: 1px solid rgba(99,102,241,0.15) !important;
+    border-radius: 8px !important;
+}
+[data-testid="stCodeBlock"] code { color: #e2e2f0 !important; }
+
+/* Markdown text and headings compact */
+.stMarkdown h1 { font-size: 1.3em !important; margin-top: 0.5em !important; padding-bottom: 0.2em !important; border-bottom: 1px solid rgba(99,102,241,0.2) !important; }
+.stMarkdown h2 { font-size: 1.1em !important; margin-top: 0.8em !important; margin-bottom: 0.3em !important; color: #c7d2fe !important; }
+.stMarkdown h3 { font-size: 0.95em !important; margin-top: 0.6em !important; margin-bottom: 0.2em !important; color: #a5b4fc !important; }
+.stMarkdown p, .stMarkdown li { font-size: 0.85em !important; line-height: 1.5 !important; }
+
+hr { border-color: rgba(99,102,241,0.12) !important; margin: 12px 0 !important; }
+.footer {
+    text-align: center; color: rgba(160,160,220,0.3);
+    font-size: 0.7em; margin-top: 24px; padding: 10px 0;
+    border-top: 1px solid rgba(99,102,241,0.1);
+}
+
+/* ─── Enforce Dark Theme via CSS Variables on Base Streamlit Components (No toml required) ─── */
+:root, [data-testid="stAppViewContainer"], html, body, .stApp {
+    --theme-background-color: #0d1117 !important;
+    --theme-secondary-background-color: #1e1e3a !important;
+    --theme-text-color: #e2e2f0 !important;
+    --theme-primary-color: #6366f1 !important;
+    
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+}
+div[data-baseweb="select"] > div {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+    border-color: rgba(99, 102, 241, 0.25) !important;
+}
+div[data-baseweb="popover"], div[data-baseweb="menu"] {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+}
+/* Popover buttons / headers */
+button[data-testid="baseButton-secondary"] {
+    background-color: #1e1e3a !important;
+    color: #e2e2f0 !important;
+    border: 1px solid rgba(99,102,241,0.3) !important;
+}
+/* Modal dialogs */
+div[role="dialog"] {
+    background-color: #0d1117 !important;
+    color: #e2e2f0 !important;
+}
+
+/* Base structural fixes */
+.stApp {
+    background-color: #0d1117 !important;
+}
+
+/* Decision Details Table - Ultimate Premium Dark Theme */
+.decision-table-container {
+    overflow-x: auto;
+    border-radius: 12px;
+    background: #121526;
+    border: 1px solid rgba(99,102,241,0.15);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    margin: 20px 0;
+}
+.decision-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Inter', sans-serif;
+    color: #e2e2f0;
+}
+.decision-table thead {
+    background: #1a1e38;
+}
+.decision-table th {
+    padding: 16px;
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a5b4fc;
+    border-bottom: 2px solid rgba(99,102,241,0.3);
+    text-align: left;
+}
+.decision-table td {
+    padding: 14px 16px;
+    font-size: 0.85em;
+    border-bottom: 1px solid rgba(99,102,241,0.08);
+    vertical-align: middle;
+}
+.decision-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+.decision-table tbody tr:hover {
+    background-color: rgba(99,102,241,0.08);
+}
+.decision-table tbody tr.vetoed-row {
+    background-color: rgba(225,29,72,0.05);
+}
+.decision-table tbody tr.vetoed-row:hover {
+    background-color: rgba(225,29,72,0.1);
+}
+.decision-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.val-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-weight: 700;
+    font-size: 0.85em;
+}
+.val-emerald { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+.val-amber { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+.val-rose { background: rgba(225,29,72,0.15); color: #fb7185; border: 1px solid rgba(225,29,72,0.3); }
+.val-neutral { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75em;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.status-vetoed { background: #be123c; color: #fff; box-shadow: 0 0 10px rgba(190,18,60,0.4); }
+.reason-cell {
+    position: relative;
+    cursor: help;
+    text-align: center;
+}
+.custom-tooltip {
+    position: relative;
+    display: inline-block;
+    color: #818cf8;
+}
+.custom-tooltip .tooltip-text {
+    visibility: hidden;
+    width: 280px;
+    background-color: #1e1e3a;
+    color: #e2e2f0;
+    text-align: left;
+    border-radius: 8px;
+    padding: 12px;
+    position: absolute;
+    z-index: 100;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -140px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    border: 1px solid rgba(99,102,241,0.4);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    font-size: 0.85em;
+    line-height: 1.5;
+    font-weight: 400;
+}
+.custom-tooltip .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: rgba(99,102,241,0.4) transparent transparent transparent;
+}
+.custom-tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}

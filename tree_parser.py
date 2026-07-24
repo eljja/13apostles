@@ -16,6 +16,7 @@ A node is a ROOT if no other organism basename is a strict prefix of it.
 import os
 import re
 import sys
+import functools
 
 # Files that belong to the framework, not organisms
 FRAMEWORK_FILES = {
@@ -160,22 +161,31 @@ def parse_decision_log_descriptions(workspace_dir: str, basenames: list[str]) ->
     return descriptions
 
 
+@functools.lru_cache(maxsize=128)
+def _fetch_from_pyodide(filename: str) -> str | None:
+    """Helper to fetch files via HTTP synchronously in Pyodide with caching."""
+    if "pyodide" not in sys.modules:
+        return None
+    from pyodide.http import open_url
+    import time
+    try:
+        try:
+            import base_url_config
+            base = base_url_config.BASE_URL
+        except Exception:
+            base = "https://eljja.github.io/13apostles/"
+        url = f"{base}{filename}?v={int(time.time())}"
+        return open_url(url).read()
+    except Exception as e:
+        print(f"[stlite-patch] Failed to fetch {filename} over HTTP: {e}")
+        return None
+
+
 def load_objective(workspace_dir: str, root_basename: str) -> str | None:
     """Load the local objective .md for a root seed, if it exists."""
     # ─── WebAssembly (Pyodide) HTTP Fetching Patch ──────────────────────────────
     if "pyodide" in sys.modules:
-        from pyodide.http import open_url
-        import time
-        try:
-            try:
-                import base_url_config
-                base = base_url_config.BASE_URL
-            except Exception:
-                base = "https://eljja.github.io/13apostles/"
-            url = f"{base}{root_basename}.objective.md?v={int(time.time())}"
-            return open_url(url).read()
-        except Exception:
-            return None
+        return _fetch_from_pyodide(f"{root_basename}.objective.md")
 
     obj_path = os.path.join(workspace_dir, f"{root_basename}.objective.md")
     if os.path.exists(obj_path):
@@ -188,18 +198,8 @@ def load_decision_log(workspace_dir: str, basename: str) -> str | None:
     """Load the full decision log .md for a node, or dynamically extract it from ancestors."""
     # ─── WebAssembly (Pyodide) HTTP Fetching Patch ──────────────────────────────
     if "pyodide" in sys.modules:
-        from pyodide.http import open_url
-        import time
-        try:
-            try:
-                import base_url_config
-                base = base_url_config.BASE_URL
-            except Exception:
-                base = "https://eljja.github.io/13apostles/"
-            url = f"{base}{basename}.md?v={int(time.time())}"
-            return open_url(url).read()
-        except Exception:
-            pass
+        content = _fetch_from_pyodide(f"{basename}.md")
+        if content: return content
 
     md_path = os.path.join(workspace_dir, f"{basename}.md")
     if os.path.exists(md_path):
@@ -214,18 +214,7 @@ def load_decision_log(workspace_dir: str, basename: str) -> str | None:
     for ancestor in ancestors:
         content = None
         if "pyodide" in sys.modules:
-            from pyodide.http import open_url
-            import time
-            try:
-                try:
-                    import base_url_config
-                    base = base_url_config.BASE_URL
-                except Exception:
-                    base = "https://eljja.github.io/13apostles/"
-                url = f"{base}{ancestor}.md?v={int(time.time())}"
-                content = open_url(url).read()
-            except Exception:
-                pass
+            content = _fetch_from_pyodide(f"{ancestor}.md")
         else:
             anc_md_path = os.path.join(workspace_dir, f"{ancestor}.md")
             if os.path.exists(anc_md_path):
@@ -274,22 +263,10 @@ def load_decision_log(workspace_dir: str, basename: str) -> str | None:
 
 
 def load_code(workspace_dir: str, basename: str) -> str | None:
-    """Load the Python source of a node."""
+    """Load the python code for an organism."""
     # ─── WebAssembly (Pyodide) HTTP Fetching Patch ──────────────────────────────
     if "pyodide" in sys.modules:
-        from pyodide.http import open_url
-        import time
-        try:
-            try:
-                import base_url_config
-                base = base_url_config.BASE_URL
-            except Exception:
-                base = "https://eljja.github.io/13apostles/"
-            url = f"{base}{basename}.py?v={int(time.time())}"
-            return open_url(url).read()
-        except Exception as e:
-            print(f"[stlite-patch] Failed to fetch {basename}.py over HTTP: {e}")
-            pass
+        return _fetch_from_pyodide(f"{basename}.py")
 
     py_path = os.path.join(workspace_dir, f"{basename}.py")
     if os.path.exists(py_path):

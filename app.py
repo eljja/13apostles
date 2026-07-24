@@ -44,6 +44,7 @@ if not hasattr(st, "iframe"):
 
 import os, sys, io, time, json, re, datetime, difflib, subprocess, signal
 from evolution import EvolutionEngine
+from utils import auto_git_push
 from tree_parser import (
     get_organism_basenames, build_edges,
     parse_decision_log_descriptions, load_code, load_decision_log,
@@ -52,182 +53,15 @@ from tree_parser import (
 
 WORKSPACE = os.path.dirname(os.path.abspath(__file__))
 
-def auto_git_push():
-    """
-    Streamlit Cloud or local env helper to automatically stage, commit, 
-    and push newly evolved organisms (*.py and *.md files) back to GitHub main branch.
-    """
-    import subprocess
-    
-    # 1. Retrieve GITHUB_TOKEN from Streamlit Secrets or Environment Variables
-    token = None
-    try:
-        if hasattr(st, "secrets") and "GITHUB_TOKEN" in st.secrets:
-            token = st.secrets["GITHUB_TOKEN"]
-    except Exception:
-        pass
-        
-    if not token:
-        token = os.environ.get("GITHUB_TOKEN")
-        
-    # 2. Configure Git bot identity
-    try:
-        subprocess.run(["git", "config", "--global", "user.name", "13 Apostles Bot"], capture_output=True)
-        subprocess.run(["git", "config", "--global", "user.email", "bot@13apostles.internal"], capture_output=True)
-        
-        # Stage newly created files
-        subprocess.run(["git", "add", "."], capture_output=True, cwd=WORKSPACE)
-        
-        # Check if there are actual diffs to commit
-        status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, cwd=WORKSPACE)
-        if not status.stdout.strip():
-            print("[Auto-Git] No changes to push.")
-            return True
-            
-        # Commit the modifications
-        commit_msg = f"chore: Auto-commit newly evolved organisms [web run {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]"
-        subprocess.run(["git", "commit", "-m", commit_msg], capture_output=True, cwd=WORKSPACE)
-        
-        # 3. Push to GitHub
-        if token:
-            # Inject token securely to bypass password prompts in headless cloud
-            remote_url = f"https://{token}@github.com/eljja/13apostles.git"
-            res = subprocess.run(["git", "push", "-f", remote_url, "HEAD:main"], capture_output=True, text=True, cwd=WORKSPACE)
-            if res.returncode == 0:
-                print("[Auto-Git] Successfully pushed newly evolved organisms to GitHub main branch!")
-                return True
-            else:
-                print(f"[Auto-Git] Push failed: {res.stderr}")
-                return False
-        else:
-            # Fallback to local default push in development env
-            res = subprocess.run(["git", "push", "-f", "13apostles", "HEAD:main"], capture_output=True, text=True, cwd=WORKSPACE)
-            return res.returncode == 0
-            
-    except Exception as e:
-        print(f"[Auto-Git] Exception during auto-commit: {str(e)}")
-        return False
-
 st.set_page_config(page_title="13 Apostles System", page_icon="🧬", layout="wide")
 
 # ─── CSS ────────────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
-* { font-family: 'Inter', sans-serif; }
-code, pre, .stCode { font-family: 'JetBrains Mono', monospace !important; }
-[data-testid="stAppViewContainer"] {
-    background: linear-gradient(160deg, #07071a 0%, #0d1117 50%, #0a0f2a 100%);
-}
-[data-testid="stHeader"] { background: transparent; }
-[data-testid="stSidebar"] { display: none !important; }
-.main-title {
-    font-size: 3.2em; font-weight: 800;
-    background: linear-gradient(135deg, #6366f1, #a78bfa, #ec4899);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text; margin: 0;
-    line-height: 1.2;
-}
-.author-email {
-    font-size: 0.8em; font-weight: 500;
-    color: rgba(160,160,220,0.6);
-    margin-left: 12px;
-}
-.section-label {
-    font-size: 0.68em; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: rgba(160,160,220,0.4);
-    margin: 10px 0 4px 0;
-}
-.badge {
-    display: inline-block; padding: 2px 7px; border-radius: 14px;
-    font-size: 0.7em; font-weight: 600; margin-right: 3px;
-}
-.badge-i { background: rgba(99,102,241,0.18); color: #a5b4fc; }
-.badge-g { background: rgba(16,185,129,0.18); color: #6ee7b7; }
-.stButton > button {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
-    color: white !important; border: none !important;
-    border-radius: 7px !important; font-weight: 600 !important;
-    font-size: 0.8em !important; padding: 6px 12px !important;
-    transition: all 0.2s ease !important;
-}
-.stButton > button:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 5px 16px rgba(99,102,241,0.4) !important;
-}
-.stSelectbox label, .stSlider label, .stCheckbox label {
-    font-size: 0.76em !important;
-}
-[data-baseweb="select"] { font-size: 0.8em !important; min-height: 30px !important; }
-/* Dark mode code blocks */
-[data-testid="stCodeBlock"] pre {
-    background-color: #0d1117 !important;
-    color: #e2e2f0 !important;
-    border: 1px solid rgba(99,102,241,0.15) !important;
-    border-radius: 8px !important;
-}
-[data-testid="stCodeBlock"] code { color: #e2e2f0 !important; }
-
-/* Markdown text and headings compact */
-.stMarkdown h1 { font-size: 1.3em !important; margin-top: 0.5em !important; padding-bottom: 0.2em !important; border-bottom: 1px solid rgba(99,102,241,0.2) !important; }
-.stMarkdown h2 { font-size: 1.1em !important; margin-top: 0.8em !important; margin-bottom: 0.3em !important; color: #c7d2fe !important; }
-.stMarkdown h3 { font-size: 0.95em !important; margin-top: 0.6em !important; margin-bottom: 0.2em !important; color: #a5b4fc !important; }
-.stMarkdown p, .stMarkdown li { font-size: 0.85em !important; line-height: 1.5 !important; }
-
-hr { border-color: rgba(99,102,241,0.12) !important; margin: 12px 0 !important; }
-.footer {
-    text-align: center; color: rgba(160,160,220,0.3);
-    font-size: 0.7em; margin-top: 24px; padding: 10px 0;
-    border-top: 1px solid rgba(99,102,241,0.1);
-}
-
-/* ─── Enforce Dark Theme via CSS Variables on Base Streamlit Components (No toml required) ─── */
-:root, [data-testid="stAppViewContainer"], html, body, .stApp {
-    --theme-background-color: #0d1117 !important;
-    --theme-secondary-background-color: #1e1e3a !important;
-    --theme-text-color: #e2e2f0 !important;
-    --theme-primary-color: #6366f1 !important;
-    
-    background-color: #0d1117 !important;
-    color: #e2e2f0 !important;
-}
-div[data-baseweb="select"] > div {
-    background-color: #0d1117 !important;
-    color: #e2e2f0 !important;
-    border-color: rgba(99, 102, 241, 0.25) !important;
-}
-div[data-baseweb="popover"], div[data-baseweb="menu"] {
-    background-color: #0d1117 !important;
-    color: #e2e2f0 !important;
-    border: 1px solid rgba(99, 102, 241, 0.25) !important;
-}
-ul[role="listbox"] {
-    background-color: #0d1117 !important;
-    color: #e2e2f0 !important;
-    border: 1px solid rgba(99, 102, 241, 0.25) !important;
-}
-li[role="option"] {
-    background-color: #0d1117 !important;
-    color: #e2e2f0 !important;
-}
-li[role="option"]:hover {
-    background-color: rgba(99, 102, 241, 0.15) !important;
-    color: #ffffff !important;
-}
-div[data-testid="stThumb"] {
-    background-color: #6366f1 !important;
-    border: 2px solid #ffffff !important;
-}
-div[data-testid="stTickBar"] {
-    color: rgba(160, 160, 220, 0.4) !important;
-}
-input[type="text"], input[type="number"], textarea, [data-baseweb="input"] input {
-    background-color: #0d1117 !important;
-    color: #e2e2f0 !important;
-    border: 1px solid rgba(99, 102, 241, 0.2) !important;
-}
-</style>
-""", unsafe_allow_html=True)
+try:
+    with open(os.path.join(WORKSPACE, "style.css"), "r", encoding="utf-8") as f:
+        css = f.read()
+    st.markdown(f"<style>\n{css}\n</style>", unsafe_allow_html=True)
+except Exception as e:
+    print(f"Failed to load CSS: {e}")
 
 # ─── Parent Window Event Listener Injection ──────────────────────────────────
 # We inject a script into the parent window using a 0-height iframe to bypass
