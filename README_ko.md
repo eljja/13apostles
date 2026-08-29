@@ -8,6 +8,14 @@
 
 ---
 
+## 🚀 주요 업데이트 내역
+*   **WebAssembly (stlite) 아키텍처 전환**: 기존 Streamlit 백엔드를 제거하고, 브라우저 내장 샌드박스(Pyodide)와 `stlite`를 활용해 파이썬 런타임 자체를 100% 클라이언트(WebAssembly) 환경으로 이식했습니다.
+*   **시스템 안정성 & 백오프(Backoff) 강화**: LLM 투표 과정에서의 JSON 마크다운 파싱을 공격적으로 정제하고, API 속도 제한(Rate-limit) 대응을 위한 지수 백오프 로직을 강화했습니다.
+*   **클라이언트 캐싱 최적화**: WebAssembly 환경의 가상 파일 시스템 로딩 지연을 최소화하기 위해 `@functools.lru_cache`를 활용한 클라이언트 측 캐싱을 적용했습니다.
+*   **검색 엔진 최적화(SEO)**: GitHub Pages의 완벽한 인덱싱을 위한 Google SEO 메타 데이터 및 Open Graph 소셜 썸네일 적용을 완료했습니다.
+
+---
+
 ## 🗺️ 1. 시스템 아키텍처
 
 13 Apostles 시스템은 단순히 현재의 실행 속도만을 탐욕적으로 극대화하는 '단순 최적화 도구(Greedy Optimizer)'가 아닙니다. 본 엔진은 **"당장의 성능 결함이나 비효율을 가졌더라도, 다음 세대에 혁신적인 형질의 모태가 될 수 있는 잠재적 구조(Dormant/Viable 상태)는 계통 내에 보존되어야만 비선형적인 알고리즘 대도약이 가능하다"**는 진화론적 철학 아래 설계된 **자율형 코드 가능성 탐색기(Evolutionary Possibility Explorer)**입니다.

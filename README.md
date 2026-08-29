@@ -8,6 +8,14 @@
 
 ---
 
+## 🚀 Recent Updates (System Architecture Refactoring)
+*   **WebAssembly (stlite) Architecture**: Fully ported the Streamlit dashboard to run entirely in the browser using Pyodide and `stlite`, without needing a python backend!
+*   **Performance & Reliability**: Enhanced JSON parsing of LLM outputs (stripping markdown aggressively) and added exponential backoff for API rate-limits.
+*   **Client-Side Caching**: Integrated `@functools.lru_cache` for WebAssembly HTTP virtual file system fetching, drastically reducing latency.
+*   **Search Engine Optimization**: Complete Google SEO tags and Open Graph preview metadata applied to GitHub Pages.
+
+---
+
 ## 🗺️ 1. System Architecture
 
 The 13 Apostles is not a simple greedy optimizer. It is designed under a deep biological philosophy: **short-term computational inefficiencies and non-optimal variants must be preserved if they contain novel structural signatures (Dormant states) to serve as genetic building blocks for future macro-evolutionary breakthroughs.** 
